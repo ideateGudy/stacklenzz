@@ -1,4 +1,4 @@
-﻿import "reflect-metadata";
+import "reflect-metadata";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import express from "express";
 import {
@@ -194,5 +194,51 @@ describe("Crash Log DB Adaptor Feature", () => {
     });
 
     expect(getCrashLogAdaptor()).toBe(mockAdaptor);
+  });
+
+  it("should include dbCrashLogs in snapshot when list method is provided", async () => {
+    const { getObservabilitySnapshot } = await import("./core/snapshot.js");
+    const mockLogs: CrashLogEntry[] = [
+      {
+        id: "err-db-1",
+        timestamp: Date.now(),
+        message: "Fatal database connection drop",
+        statusCode: 500,
+      },
+    ];
+
+    const mockAdaptor: CrashLogAdaptor = {
+      list: async () => mockLogs,
+      delete: vi.fn(),
+      clearAll: vi.fn(),
+    };
+
+    setCrashLogAdaptor(mockAdaptor);
+    const snapshot = await getObservabilitySnapshot({ serviceName: "adaptor-snap" });
+    expect(snapshot.dbCrashLogs).toBeDefined();
+    expect(snapshot.dbCrashLogs?.length).toBe(1);
+    expect(snapshot.dbCrashLogs?.[0].id).toBe("err-db-1");
+  });
+
+  it("should invoke delete(id) and clearAll() on adaptor", async () => {
+    const deletedIds: string[] = [];
+    let cleared = false;
+
+    const mockAdaptor: CrashLogAdaptor = {
+      delete: async (id: string) => {
+        deletedIds.push(id);
+      },
+      clearAll: async () => {
+        cleared = true;
+      },
+    };
+
+    setCrashLogAdaptor(mockAdaptor);
+    const adaptor = getCrashLogAdaptor();
+    await adaptor?.delete?.("err-crash-123");
+    await adaptor?.clearAll?.();
+
+    expect(deletedIds).toContain("err-crash-123");
+    expect(cleared).toBe(true);
   });
 });

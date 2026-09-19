@@ -64,6 +64,18 @@ export type CrashLogEntry = CapturedErrorRecord;
 export interface CrashLogAdaptor {
   save?: (entry: CrashLogEntry) => Promise<void> | void;
   saveCrashLog?: (entry: CrashLogEntry) => Promise<void> | void;
+  /**
+   * Optional query method to retrieve persisted 5xx crash logs from the database for the UI.
+   */
+  list?: (options?: { limit?: number; offset?: number }) => Promise<CrashLogEntry[]> | CrashLogEntry[];
+  /**
+   * Optional method to delete an individual crash log from the database by ID.
+   */
+  delete?: (id: string) => Promise<void> | void;
+  /**
+   * Optional method to clear/purge all crash logs from the database.
+   */
+  clearAll?: () => Promise<void> | void;
 }
 
 let activeCrashLogAdaptor: CrashLogAdaptor | undefined = undefined;

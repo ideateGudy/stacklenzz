@@ -1,6 +1,6 @@
 import { register, getWindowMetrics } from "./metrics.js";
 import { ObservabilityConfig, getDefaultConfig } from "./config.js";
-import { getRecentErrors, getBreadcrumbs } from "./logger.js";
+import { getRecentErrors, getBreadcrumbs, getCrashLogAdaptor } from "./logger.js";
 import type { CapturedErrorRecord, Breadcrumb } from "./logger.js";
 
 export type { CapturedErrorRecord, Breadcrumb };
@@ -68,6 +68,10 @@ export interface ObservabilitySnapshot {
   };
   recentErrors: CapturedErrorRecord[];
   breadcrumbs?: Breadcrumb[];
+  /**
+   * Persisted 5xx crash logs retrieved from the developer-provided database adaptor.
+   */
+  dbCrashLogs?: CapturedErrorRecord[];
 }
 
 let lastCpuUsage: NodeJS.CpuUsage | null = null;
@@ -279,5 +283,16 @@ export async function getObservabilitySnapshot(
     },
     recentErrors: getRecentErrors(),
     breadcrumbs: getBreadcrumbs(),
+    dbCrashLogs: await (async () => {
+      const adaptor = getCrashLogAdaptor();
+      if (adaptor && typeof adaptor.list === "function") {
+        try {
+          return await adaptor.list();
+        } catch {
+          return undefined;
+        }
+      }
+      return undefined;
+    })(),
   };
 }
