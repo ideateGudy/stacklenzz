@@ -1,6 +1,6 @@
 {
   "name": "@stacklenzz/server",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "Stacklenzz Observability SDK for Express and NestJS with OpenTelemetry, Prometheus metrics, and Winston logging",
   "author": "Goodnews Azonubi <azonubigoodnews@gmail.com>",
   "publishConfig": {
