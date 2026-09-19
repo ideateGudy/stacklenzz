@@ -41,13 +41,14 @@ describe("Observability UI Components & Templates Test Suite", () => {
     expect(UI.DashboardSwitcher).toBeDefined();
   });
 
-  it("should include all 6 templates in DASHBOARD_TEMPLATES with valid metadata", () => {
-    expect(DASHBOARD_TEMPLATES.length).toBe(6);
+  it("should include all 7 templates in DASHBOARD_TEMPLATES with valid metadata", () => {
+    expect(DASHBOARD_TEMPLATES.length).toBe(7);
     const templateIds = DASHBOARD_TEMPLATES.map((t) => t.id);
     expect(templateIds).toContain("full");
     expect(templateIds).toContain("api");
     expect(templateIds).toContain("performance");
     expect(templateIds).toContain("errors");
+    expect(templateIds).toContain("crash-logs");
     expect(templateIds).toContain("runtime");
     expect(templateIds).toContain("minimal");
 
@@ -261,6 +262,22 @@ describe("Observability UI Components & Templates Test Suite", () => {
         expect(colors.textMuted).toBeTruthy();
         expect(colors.switcherBg).toBeTruthy();
       });
+    });
+
+    it("should export CrashLogsDashboard and CrashLogsList components", () => {
+      expect(UI.CrashLogsDashboard).toBeDefined();
+      expect(UI.CrashLogsList).toBeDefined();
+      const crashTemplate = UI.DASHBOARD_TEMPLATES.find((t) => t.id === "crash-logs");
+      expect(crashTemplate).toBeDefined();
+      expect(crashTemplate?.label).toBe("Database Crash Logs");
+    });
+
+    it("should include realistic dbCrashLogs in mock snapshot", () => {
+      const mock = UI.generateMockSnapshot();
+      expect(mock.dbCrashLogs).toBeDefined();
+      expect(mock.dbCrashLogs?.length).toBeGreaterThanOrEqual(1);
+      expect(mock.dbCrashLogs?.[0].statusCode).toBeGreaterThanOrEqual(500);
+      expect(mock.dbCrashLogs?.[0].stack).toBeDefined();
     });
   });
 });

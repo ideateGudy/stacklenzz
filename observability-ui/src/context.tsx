@@ -21,6 +21,9 @@ export interface ObservabilityContextValue {
   setTheme: (theme: RuntimeTheme) => void;
   themeColors: ThemeColors;
   store: ObservabilityStore;
+  dbCrashLogs: import("./types.js").CapturedErrorRecord[];
+  deleteCrashLog: (id: string) => Promise<boolean>;
+  clearAllCrashLogs: () => Promise<boolean>;
 }
 
 const ObservabilityContext = createContext<ObservabilityContextValue | null>(null);
@@ -146,6 +149,67 @@ function ObservabilityProviderInner({
 
   const themeColors = RUNTIME_THEMES[theme] || RUNTIME_THEMES["tokyo-night"];
 
+  const deleteCrashLog = useCallback(
+    async (id: string): Promise<boolean> => {
+      // Optimistically update snapshot in local state
+      setSnapshot((prev) => {
+        if (!prev) return null;
+        const currentList = prev.dbCrashLogs || (prev.recentErrors || []).filter((e) => !e.statusCode || e.statusCode >= 500);
+        const updated = currentList.filter((l) => l.id !== id);
+        return {
+          ...prev,
+          dbCrashLogs: updated,
+        };
+      });
+
+      if (isMock) {
+        return true;
+      }
+
+      try {
+        const baseUrl = endpoint.replace(/\/stats\/?$/, "");
+        const deleteUrl = `${baseUrl}/crash-logs/${encodeURIComponent(id)}`;
+        const headers: Record<string, string> = { Accept: "application/json" };
+        if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
+        const res = await fetch(deleteUrl, { method: "DELETE", headers });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    },
+    [endpoint, isMock, config.token]
+  );
+
+  const clearAllCrashLogs = useCallback(async (): Promise<boolean> => {
+    // Optimistically clear in local state
+    setSnapshot((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        dbCrashLogs: [],
+      };
+    });
+
+    if (isMock) {
+      return true;
+    }
+
+    try {
+      const baseUrl = endpoint.replace(/\/stats\/?$/, "");
+      const clearUrl = `${baseUrl}/crash-logs`;
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (config.token) headers["Authorization"] = `Bearer ${config.token}`;
+      const res = await fetch(clearUrl, { method: "DELETE", headers });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, [endpoint, isMock, config.token]);
+
+  const dbCrashLogs =
+    snapshot?.dbCrashLogs ||
+    (snapshot?.recentErrors || []).filter((e) => !e.statusCode || e.statusCode >= 500);
+
   return (
     <ObservabilityContext.Provider
       value={{
@@ -159,6 +223,9 @@ function ObservabilityProviderInner({
         setTheme: handleSetTheme,
         themeColors,
         store,
+        dbCrashLogs,
+        deleteCrashLog,
+        clearAllCrashLogs,
       }}
     >
       {children}

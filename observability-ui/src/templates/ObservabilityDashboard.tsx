@@ -11,6 +11,7 @@ import { BackendPerformanceDashboard } from "./BackendPerformanceDashboard.js";
 import { ErrorMonitoringDashboard } from "./ErrorMonitoringDashboard.js";
 import { NodeRuntimeDashboard } from "./NodeRuntimeDashboard.js";
 import { MinimalDashboard } from "./MinimalDashboard.js";
+import { CrashLogsDashboard } from "./CrashLogsDashboard.js";
 
 export interface ObservabilityDashboardProps {
   config?: ObservabilityConfig;
@@ -56,6 +57,9 @@ function ObservabilityDashboardInner({
       )}
       {currentDashboard === "errors" && (
         <ErrorMonitoringDashboard config={config} />
+      )}
+      {currentDashboard === "crash-logs" && (
+        <CrashLogsDashboard config={config} />
       )}
       {currentDashboard === "runtime" && (
         <NodeRuntimeDashboard config={config} />

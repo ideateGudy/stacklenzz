@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Palette,
   Check,
+  Database,
 } from "lucide-react";
 import { useObservability } from "../context.js";
 import { RUNTIME_THEMES, RuntimeTheme } from "../themes.js";
@@ -19,7 +20,8 @@ export type DashboardTemplateType =
   | "performance"
   | "errors"
   | "runtime"
-  | "minimal";
+  | "minimal"
+  | "crash-logs";
 
 export interface DashboardSwitcherProps {
   currentDashboard: DashboardTemplateType;
@@ -56,6 +58,12 @@ export const DASHBOARD_TEMPLATES: {
     label: "Errors & Failures",
     shortDesc: "Aggregated exceptions, breadcrumbs & fingerprints",
     icon: <AlertTriangle size={15} color="#f43f5e" />,
+  },
+  {
+    id: "crash-logs",
+    label: "Database Crash Logs",
+    shortDesc: "Persisted 5xx server crashes stored in database",
+    icon: <Database size={15} color="#ef4444" />,
   },
   {
     id: "runtime",

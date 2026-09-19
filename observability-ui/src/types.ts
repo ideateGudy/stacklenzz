@@ -95,7 +95,13 @@ export interface ObservabilitySnapshot {
   };
   recentErrors?: CapturedErrorRecord[];
   breadcrumbs?: Breadcrumb[];
+  /**
+   * Persisted 5xx crash logs retrieved from the developer's database adaptor.
+   */
+  dbCrashLogs?: CapturedErrorRecord[];
 }
+
+export type CrashLogEntry = CapturedErrorRecord;
 
 import { RuntimeTheme } from "./themes.js";
 
@@ -113,5 +119,6 @@ export type DashboardTemplate =
   | "performance"
   | "errors"
   | "runtime"
-  | "minimal";
+  | "minimal"
+  | "crash-logs";
 

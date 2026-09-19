@@ -13,6 +13,7 @@ export * from "./components/EndpointTable.js";
 export * from "./components/RuntimeMetrics.js";
 export * from "./components/ErrorInspector.js";
 export * from "./components/DashboardSwitcher.js";
+export * from "./components/CrashLogsList.js";
 
 // Templates
 export * from "./templates/ObservabilityDashboard.js";
@@ -20,5 +21,6 @@ export * from "./templates/FullBackendDashboard.js";
 export * from "./templates/ApiOverviewDashboard.js";
 export * from "./templates/BackendPerformanceDashboard.js";
 export * from "./templates/ErrorMonitoringDashboard.js";
+export * from "./templates/CrashLogsDashboard.js";
 export * from "./templates/NodeRuntimeDashboard.js";
 export * from "./templates/MinimalDashboard.js";
