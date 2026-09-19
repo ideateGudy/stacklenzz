@@ -1,8 +1,13 @@
 import express from "express";
+import dotenv from "dotenv";
 import { setupObservability, logger, addBreadcrumb } from "@stacklenzz/server";
+import mongoose from "mongoose";
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const products = [
   {
@@ -19,44 +24,59 @@ const products = [
     category: "Infrastructure",
     description: "High-performance cloud server for demanding applications.",
   },
-  {
-    id: 3,
-    name: "Cloud Server Pro",
-    price: 49,
-    category: "Infrastructure",
-    description: "High-performance cloud server for demanding applications.",
-  },
-  {
-    id: 4,
-    name: "Managed Database",
-    price: 99,
-    category: "Infrastructure",
-    description: "High-performance cloud server for demanding applications.",
-  },
-  {
-    id: 5,
-    name: "Cloud Server Pro",
-    price: 49,
-    category: "Infrastructure",
-    description: "High-performance cloud server for demanding applications.",
-  },
-  {
-    id: 6,
-    name: "Managed Database",
-    price: 99,
-    category: "Infrastructure",
-    description: "High-performance cloud server for demanding applications.",
-  },
 ];
+
+// Define Mongoose Schema for Crash Logs
+const crashLogSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    timestamp: { type: String, required: true },
+    serviceName: { type: String, required: true },
+    environment: { type: String, required: true },
+    errorName: { type: String, required: true },
+    message: { type: String, required: true },
+    stack: { type: String },
+    route: { type: String },
+    method: { type: String },
+    statusCode: { type: Number },
+    breadcrumbs: { type: Array, default: [] },
+    context: { type: Object, default: {} },
+  },
+  { timestamps: true }
+);
+
+const CrashLogModel = mongoose.models.CrashLog || mongoose.model("CrashLog", crashLogSchema);
+
+// Connect to MongoDB
+mongoose
+  .connect(MONGODB_URI)
+  .then(() => console.log("🌱 [Express API] Connected to MongoDB for persistent 5xx crash logging"))
+  .catch((err) => console.error("⚠️ [Express API] MongoDB Connection Error:", err.message));
 
 // One-liner attaches:
 // 1. Request latency & throughput monitoring
 // 2. Prometheus metrics at /metrics
 // 3. Telemetry JSON snapshot at /api/observability/stats for the UI dashboard
+// 4. Pluggable MongoDB crash log adaptor for persistent 5xx failures
 setupObservability(app, {
   serviceName: "bookme-express-api",
   environment: "development",
   autoInitTracing: false,
+  crashLogAdaptor: {
+    async save(errorLog) {
+      console.log("💾 [MongoDB Adaptor] Persisting 5xx crash log:", errorLog.id);
+      await CrashLogModel.updateOne({ id: errorLog.id }, errorLog, { upsert: true });
+    },
+    async list() {
+      return await CrashLogModel.find().sort({ createdAt: -1 }).lean();
+    },
+    async delete(id) {
+      await CrashLogModel.deleteOne({ id });
+    },
+    async clearAll() {
+      await CrashLogModel.deleteMany({});
+    },
+  },
 });
 
 app.use(express.json());

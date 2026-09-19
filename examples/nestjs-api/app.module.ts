@@ -49,11 +49,60 @@ export class AppController {
   }
 }
 
+import mongoose from "mongoose";
+import * as dotenv from "dotenv";
+
+dotenv.config();
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// Define Mongoose Schema for NestJS Crash Logs
+const crashLogSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    timestamp: { type: String, required: true },
+    serviceName: { type: String, required: true },
+    environment: { type: String, required: true },
+    errorName: { type: String, required: true },
+    message: { type: String, required: true },
+    stack: { type: String },
+    route: { type: String },
+    method: { type: String },
+    statusCode: { type: Number },
+    breadcrumbs: { type: Array, default: [] },
+    context: { type: Object, default: {} },
+  },
+  { timestamps: true }
+);
+
+const CrashLogModel = mongoose.models.NestCrashLog || mongoose.model("NestCrashLog", crashLogSchema);
+
+// Connect to MongoDB
+mongoose
+  .connect(MONGODB_URI)
+  .then(() => console.log("🌱 [NestJS API] Connected to MongoDB for persistent 5xx crash logging"))
+  .catch((err) => console.error("⚠️ [NestJS API] MongoDB Connection Error:", err.message));
+
 @Module({
   imports: [
     ObservabilityModule.forRoot({
       serviceName: "bookme-nestjs-api",
       autoInitTracing: false,
+      crashLogAdaptor: {
+        async save(errorLog) {
+          console.log("💾 [NestJS MongoDB Adaptor] Persisting 5xx crash log:", errorLog.id);
+          await CrashLogModel.updateOne({ id: errorLog.id }, errorLog, { upsert: true });
+        },
+        async list() {
+          return await CrashLogModel.find().sort({ createdAt: -1 }).lean();
+        },
+        async delete(id) {
+          await CrashLogModel.deleteOne({ id });
+        },
+        async clearAll() {
+          await CrashLogModel.deleteMany({});
+        },
+      },
     }),
   ],
   controllers: [AppController],
