@@ -18,6 +18,8 @@ import {
   Tag,
   Key,
   FileText,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 export interface CrashLogsListProps {
@@ -70,6 +72,7 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Record<string, "stack" | "breadcrumbs" | "context" | "payload">>({});
   const [isClearing, setIsClearing] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Process logs to calculate occurrences (x2, x3) for identical crash signatures
@@ -112,16 +115,11 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const onConfirmClearAll = async () => {
-    if (activeLogs.length === 0) return;
-    const ok = window.confirm(
-      "Are you sure you want to permanently delete all crash logs from the database?"
-    );
-    if (!ok) return;
-
+  const executeClearAll = async () => {
     setIsClearing(true);
     try {
       await handleClearAll();
+      setShowClearModal(false);
     } finally {
       setIsClearing(false);
     }
@@ -252,7 +250,7 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
           </button>
 
           <button
-            onClick={onConfirmClearAll}
+            onClick={() => activeLogs.length > 0 && setShowClearModal(true)}
             disabled={isClearing || activeLogs.length === 0}
             style={{
               display: "flex",
@@ -790,6 +788,156 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {showClearModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            padding: "1rem",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "460px",
+              borderRadius: "1.25rem",
+              background: themeColors.card || "#0f172a",
+              border: `1px solid ${themeColors.cardBorder || "rgba(255,255,255,0.1)"}`,
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+              padding: "1.5rem",
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.25rem",
+              fontFamily: "Inter, system-ui, sans-serif",
+            }}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowClearModal(false)}
+              disabled={isClearing}
+              style={{
+                position: "absolute",
+                top: "1.25rem",
+                right: "1.25rem",
+                background: "transparent",
+                border: "none",
+                color: themeColors.textMuted,
+                cursor: "pointer",
+                padding: "0.25rem",
+                borderRadius: "0.375rem",
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            {/* Modal Header & Icon */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+              <div
+                style={{
+                  width: "3rem",
+                  height: "3rem",
+                  borderRadius: "0.75rem",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <AlertTriangle size={22} color="#ef4444" />
+              </div>
+              <div>
+                <h3
+                  style={{
+                    fontSize: "1.125rem",
+                    fontWeight: 700,
+                    margin: 0,
+                    color: themeColors.text,
+                  }}
+                >
+                  Clear All Database Crash Logs?
+                </h3>
+                <p
+                  style={{
+                    margin: "0.4rem 0 0 0",
+                    fontSize: "0.875rem",
+                    color: themeColors.textMuted,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  This action will permanently delete all <strong>{activeLogs.length}</strong> 5xx crash log incident records from your database.
+                  <br />
+                  <span style={{ color: "#ef4444", fontWeight: 600 }}>This action cannot be undone.</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: "0.75rem",
+                marginTop: "0.5rem",
+              }}
+            >
+              <button
+                onClick={() => setShowClearModal(false)}
+                disabled={isClearing}
+                style={{
+                  padding: "0.6rem 1.1rem",
+                  borderRadius: "0.5rem",
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: `1px solid ${themeColors.cardBorder || "rgba(255, 255, 255, 0.1)"}`,
+                  color: themeColors.text,
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={executeClearAll}
+                disabled={isClearing}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.6rem 1.25rem",
+                  borderRadius: "0.5rem",
+                  background: "#ef4444",
+                  border: "none",
+                  color: "#ffffff",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  cursor: isClearing ? "not-allowed" : "pointer",
+                  opacity: isClearing ? 0.7 : 1,
+                  boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+                }}
+              >
+                <Trash2 size={15} />
+                <span>{isClearing ? "Deleting..." : "Permanently Delete All"}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
