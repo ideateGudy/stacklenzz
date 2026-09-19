@@ -45,11 +45,20 @@ function getBreadcrumbIcon(category: Breadcrumb["category"]) {
 
 function formatDate(value: any): string {
   if (!value) return "Just now";
-  // Check if string or number
-  const d = new Date(typeof value === "number" ? value : String(value));
+  
+  const num = Number(value);
+  if (!isNaN(num) && num > 1000000000) {
+    const d = new Date(num);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString();
+    }
+  }
+
+  const d = new Date(String(value));
   if (!isNaN(d.getTime())) {
     return d.toLocaleString();
   }
+
   return String(value);
 }
 
@@ -373,6 +382,30 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       {statusCode}
                     </div>
 
+                    {/* Grouped Occurrences Badge - placed right in front of status code */}
+                    {log.occurrences && log.occurrences > 1 && (
+                      <span
+                        style={{
+                          backgroundColor: "rgba(99, 102, 241, 0.2)",
+                          color: "#a5b4fc",
+                          border: "1px solid rgba(99, 102, 241, 0.3)",
+                          fontSize: "0.68rem",
+                          fontFamily: "monospace",
+                          fontWeight: 700,
+                          padding: "0.1rem 0.45rem",
+                          borderRadius: "9999px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.25rem",
+                          flexShrink: 0,
+                        }}
+                        title={`Grouped Issue: Occurred ${log.occurrences} times`}
+                      >
+                        <Layers size={10} />
+                        x{log.occurrences}
+                      </span>
+                    )}
+
                     {/* Method & Route */}
                     {log.route && (
                       <div
@@ -413,22 +446,6 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
 
                   {/* Right metadata & delete button */}
                   <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexShrink: 0 }}>
-                    {log.occurrences && log.occurrences > 1 && (
-                      <span
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.15rem 0.55rem",
-                          borderRadius: "0.35rem",
-                          background: "rgba(239, 68, 68, 0.2)",
-                          color: "#fca5a5",
-                          fontWeight: 700,
-                          border: "1px solid rgba(239, 68, 68, 0.3)",
-                        }}
-                      >
-                        x{log.occurrences}
-                      </span>
-                    )}
-
                     <div
                       style={{
                         display: "flex",
@@ -464,8 +481,6 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       <Trash2 size={13} />
                     </button>
                   </div>
-                </div>
-
                 {/* Expanded Details Body */}
                 {isExpanded && (
                   <div
