@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { CapturedErrorRecord, Breadcrumb } from "../types.js";
 import { useObservability } from "../context.js";
 import {
@@ -41,6 +41,16 @@ function getBreadcrumbIcon(category: Breadcrumb["category"]) {
   }
 }
 
+function formatDate(value: any): string {
+  if (!value) return "Just now";
+  // Check if string or number
+  const d = new Date(typeof value === "number" ? value : String(value));
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleString();
+  }
+  return String(value);
+}
+
 export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps) {
   const {
     dbCrashLogs: contextLogs,
@@ -51,16 +61,38 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
     isLoading,
   } = useObservability();
 
-  const activeLogs = logs || contextLogs || [];
+  const rawLogs = logs || contextLogs || [];
   const handleDelete = onDelete || contextDelete;
   const handleClearAll = onClearAll || contextClearAll;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Record<string, "stack" | "breadcrumbs" | "context">>({});
+  const [activeTab, setActiveTab] = useState<Record<string, "stack" | "breadcrumbs" | "context" | "payload">>({});
   const [isClearing, setIsClearing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Process logs to calculate occurrences (x2, x3) for identical crash signatures
+  const activeLogs = React.useMemo(() => {
+    const map = new Map<string, CapturedErrorRecord>();
+    for (const log of rawLogs) {
+      const key =
+        log.fingerprint ||
+        `${log.route || ""}:${log.method || ""}:${log.message || ""}:${log.statusCode || 500}`;
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.occurrences = (existing.occurrences || 1) + (log.occurrences || 1);
+        const existingTime = new Date(existing.timestamp || (existing as any).createdAt || 0).getTime();
+        const logTime = new Date(log.timestamp || (log as any).createdAt || 0).getTime();
+        if (logTime > existingTime) {
+          existing.timestamp = log.timestamp || (log as any).createdAt;
+        }
+      } else {
+        map.set(key, { ...log, occurrences: log.occurrences || 1 });
+      }
+    }
+    return Array.from(map.values());
+  }, [rawLogs]);
 
   const filteredLogs = activeLogs.filter((log) => {
     if (!searchQuery.trim()) return true;
@@ -284,8 +316,9 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
           {filteredLogs.map((log) => {
             const isExpanded = expandedId === log.id;
             const currentTab = activeTab[log.id] || "stack";
-            const dateStr = new Date(log.timestamp).toLocaleString();
+            const dateStr = formatDate(log.timestamp || (log as any).createdAt || (log as any).updatedAt);
             const statusCode = log.statusCode || 500;
+            const payload = log.responseBody || (log.context as any)?.responseBody || (log as any).payload;
 
             return (
               <div
@@ -386,11 +419,12 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       <span
                         style={{
                           fontSize: "0.75rem",
-                          padding: "0.15rem 0.45rem",
+                          padding: "0.15rem 0.55rem",
                           borderRadius: "0.35rem",
-                          background: "rgba(255, 255, 255, 0.08)",
-                          color: themeColors.textMuted,
-                          fontWeight: 600,
+                          background: "rgba(239, 68, 68, 0.2)",
+                          color: "#fca5a5",
+                          fontWeight: 700,
+                          border: "1px solid rgba(239, 68, 68, 0.3)",
                         }}
                       >
                         x{log.occurrences}
@@ -513,6 +547,26 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       </button>
 
                       <button
+                        onClick={() => setActiveTab({ ...activeTab, [log.id]: "payload" })}
+                        style={{
+                          background: currentTab === "payload" ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                          border: "none",
+                          color: currentTab === "payload" ? themeColors.text : themeColors.textMuted,
+                          fontSize: "0.8125rem",
+                          fontWeight: 600,
+                          padding: "0.35rem 0.75rem",
+                          borderRadius: "0.35rem",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.35rem",
+                        }}
+                      >
+                        <FileText size={13} />
+                        <span>Response Payload</span>
+                      </button>
+
+                      <button
                         onClick={() => setActiveTab({ ...activeTab, [log.id]: "breadcrumbs" })}
                         style={{
                           background: currentTab === "breadcrumbs" ? "rgba(255, 255, 255, 0.1)" : "transparent",
@@ -573,7 +627,39 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       </pre>
                     )}
 
-                    {/* Tab 2: Breadcrumbs */}
+                    {/* Tab 2: Response Payload */}
+                    {currentTab === "payload" && (
+                      <pre
+                        style={{
+                          margin: 0,
+                          padding: "0.85rem 1rem",
+                          borderRadius: "0.5rem",
+                          background: "rgba(0, 0, 0, 0.4)",
+                          color: "#38bdf8",
+                          fontFamily: "monospace",
+                          fontSize: "0.8125rem",
+                          lineHeight: 1.5,
+                          overflowX: "auto",
+                          maxHeight: "320px",
+                        }}
+                      >
+                        {payload
+                          ? typeof payload === "object"
+                            ? JSON.stringify(payload, null, 2)
+                            : String(payload)
+                          : JSON.stringify(
+                              {
+                                statusCode: statusCode,
+                                error: "Internal Server Error",
+                                message: log.message,
+                              },
+                              null,
+                              2
+                            )}
+                      </pre>
+                    )}
+
+                    {/* Tab 3: Breadcrumbs */}
                     {currentTab === "breadcrumbs" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                         {!log.breadcrumbs || log.breadcrumbs.length === 0 ? (
@@ -608,7 +694,7 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                               </span>
                               <span style={{ color: themeColors.text, flex: 1 }}>{crumb.message}</span>
                               <span style={{ color: themeColors.textMuted, fontSize: "0.7rem" }}>
-                                {new Date(crumb.timestamp).toLocaleTimeString()}
+                                {formatDate(crumb.timestamp)}
                               </span>
                             </div>
                           ))
@@ -616,7 +702,7 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       </div>
                     )}
 
-                    {/* Tab 3: Context */}
+                    {/* Tab 4: Context */}
                     {currentTab === "context" && (
                       <div
                         style={{
