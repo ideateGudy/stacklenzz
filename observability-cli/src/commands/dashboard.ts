@@ -75,6 +75,7 @@ export async function runDashboardCommand(options: DashboardCommandOptions) {
       choices: [
         { title: "Universal Console (Recommended - Includes interactive switcher & 6 runtime themes)", value: "ObservabilityDashboard" },
         { title: "Full Backend Suite (All-in-one health, requests, errors, CPU, latency)", value: "FullBackendDashboard" },
+        { title: "Database Crash Logs (Dedicated database error logs viewer)", value: "CrashLogsDashboard" },
         { title: "API Overview (Routes, request rates, HTTP status breakdown)", value: "ApiOverviewDashboard" },
         { title: "Performance (Latency percentiles P50, P95, P99, slow requests)", value: "BackendPerformanceDashboard" },
         { title: "Error Monitoring (Spikes, 4xx/5xx breakdown, failure logs)", value: "ErrorMonitoringDashboard" },
