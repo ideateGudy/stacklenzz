@@ -59,6 +59,51 @@ export interface CapturedErrorRecord {
   };
 }
 
+export type CrashLogEntry = CapturedErrorRecord;
+
+export interface CrashLogAdaptor {
+  save?: (entry: CrashLogEntry) => Promise<void> | void;
+  saveCrashLog?: (entry: CrashLogEntry) => Promise<void> | void;
+}
+
+let activeCrashLogAdaptor: CrashLogAdaptor | undefined = undefined;
+
+export function setCrashLogAdaptor(adaptor?: CrashLogAdaptor): void {
+  activeCrashLogAdaptor = adaptor;
+}
+
+export function getCrashLogAdaptor(): CrashLogAdaptor | undefined {
+  return activeCrashLogAdaptor;
+}
+
+/**
+ * Non-blocking fire-and-forget helper that notifies the registered DB adaptor
+ * only for 5xx errors or uncaught server crashes.
+ */
+function notifyCrashLogAdaptor(entry: CrashLogEntry): void {
+  const adaptor = activeCrashLogAdaptor;
+  if (!adaptor) return;
+
+  // Only trigger for 5xx or uncaught exceptions (status undefined defaults to 500 crash)
+  const is5xx = typeof entry.statusCode === "number" ? entry.statusCode >= 500 : true;
+  if (!is5xx) return;
+
+  // Fire-and-forget: execute asynchronously and catch all errors to protect host app
+  Promise.resolve().then(async () => {
+    try {
+      if (typeof adaptor.save === "function") {
+        await adaptor.save(entry);
+      } else if (typeof adaptor.saveCrashLog === "function") {
+        await adaptor.saveCrashLog(entry);
+      }
+    } catch {
+      // Deliberately swallow errors so failing DB writes never crash or disrupt the host process
+    }
+  }).catch(() => {
+    // Catch-all safety guard
+  });
+}
+
 const MAX_ERROR_BUFFER_SIZE = 50;
 const errorRingBuffer: CapturedErrorRecord[] = [];
 
@@ -159,6 +204,7 @@ export function recordError(err: {
     } else {
       existing.breadcrumbs = breadcrumbRingBuffer.slice(-10);
     }
+    notifyCrashLogAdaptor(existing);
     return;
   }
 
@@ -197,6 +243,7 @@ export function recordError(err: {
   if (errorRingBuffer.length > MAX_ERROR_BUFFER_SIZE) {
     errorRingBuffer.pop();
   }
+  notifyCrashLogAdaptor(record);
 }
 
 /**

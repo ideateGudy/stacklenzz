@@ -10,6 +10,7 @@ import { ObservabilityInterceptor } from "./observability.interceptor.js";
 import { ObservabilityExceptionFilter } from "./observability.filter.js";
 import { ObservabilityController } from "./observability.controller.js";
 import { initTracing } from "../core/tracing.js";
+import { setCrashLogAdaptor } from "../core/logger.js";
 
 @Global()
 @Module({})
@@ -20,6 +21,10 @@ export class ObservabilityModule {
   static forRoot(options: NestObservabilityOptions = {}): DynamicModule {
     if (options.autoInitTracing !== false) {
       initTracing(options);
+    }
+
+    if (options.crashLogAdaptor) {
+      setCrashLogAdaptor(options.crashLogAdaptor);
     }
 
     const optionsProvider: Provider = {

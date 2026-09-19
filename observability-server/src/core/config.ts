@@ -1,3 +1,5 @@
+import type { CrashLogAdaptor } from "./logger.js";
+
 export interface ObservabilityConfig {
   /**
    * Name of your application service.
@@ -56,6 +58,11 @@ export interface ObservabilityConfig {
    * Paths to ignore in HTTP middleware / interceptor metrics & logging (e.g., ['/metrics', '/healthz']).
    */
   ignoredPaths?: string[];
+
+  /**
+   * Optional pluggable database adaptor to persist 5xx server crash logs.
+   */
+  crashLogAdaptor?: CrashLogAdaptor;
 }
 
 export const getDefaultConfig = (overrides?: Partial<ObservabilityConfig>): ObservabilityConfig => {
@@ -94,6 +101,7 @@ export const getDefaultConfig = (overrides?: Partial<ObservabilityConfig>): Obse
     durationBuckets: overrides?.durationBuckets ?? [
       0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
     ],
+    crashLogAdaptor: overrides?.crashLogAdaptor,
     ignoredPaths: overrides?.ignoredPaths ?? [
       "/metrics",
       "/api/observability/stats",

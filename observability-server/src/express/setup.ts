@@ -5,6 +5,7 @@ import {
 } from "./middleware.js";
 import { createMetricsHandler, createStatsHandler } from "./metrics-route.js";
 import { initTracing } from "../core/tracing.js";
+import { setCrashLogAdaptor } from "../core/logger.js";
 
 export interface SetupExpressObservabilityOptions extends ExpressObservabilityOptions {
   /**
@@ -30,6 +31,10 @@ export function setupObservability(
 ): void {
   if (options.autoInitTracing !== false) {
     initTracing(options);
+  }
+
+  if (options.crashLogAdaptor) {
+    setCrashLogAdaptor(options.crashLogAdaptor);
   }
 
   const metricsPath = options.metricsPath || "/metrics";

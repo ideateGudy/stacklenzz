@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { OBSERVABILITY_OPTIONS } from "./interfaces.js";
 import type { NestObservabilityOptions } from "./interfaces.js";
-import { logger as defaultLogger, addBreadcrumb } from "../core/logger.js";
+import { logger as defaultLogger, addBreadcrumb, setCrashLogAdaptor } from "../core/logger.js";
 import { recordRequestEvent } from "../core/metrics.js";
 import type { Logger } from "winston";
 
@@ -27,6 +27,9 @@ export class ObservabilityExceptionFilter implements ExceptionFilter {
     private readonly options: NestObservabilityOptions = {}
   ) {
     this.loggerInstance = options.customLogger || defaultLogger;
+    if (options.crashLogAdaptor) {
+      setCrashLogAdaptor(options.crashLogAdaptor);
+    }
   }
 
   catch(exception: unknown, host: ArgumentsHost): void {
