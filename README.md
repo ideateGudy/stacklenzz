@@ -64,6 +64,15 @@ const app = express();
 setupObservability(app, {
   serviceName: "my-express-api",
   environment: "production",
+  statsPath: "/api/observability/stats", // default
+  metricsPath: "/metrics",              // default
+  // Optional: Pluggable DB Adaptor for 5xx Server Crashes
+  crashLogAdaptor: {
+    save: async (entry) => {
+      // Persist 5xx crash logs to Postgres, MongoDB, Prisma, etc.
+      await db.crashLogs.insert(entry);
+    },
+  },
 });
 
 app.get("/api/users", (req, res) => {
@@ -224,6 +233,40 @@ checkoutCounter.inc();
 const snapshot = await getObservabilitySnapshot();
 console.log("Current Error Rate (%):", snapshot.summary.errorRate);
 console.log("Active Requests:", snapshot.summary.activeRequests);
+```
+
+### 💾 Pluggable Database Crash Log Adaptor (`crashLogAdaptor`)
+
+Persist 5xx server crashes directly to your database (PostgreSQL, MongoDB, Redis, Prisma, TypeORM, etc.).
+
+- **Opt-in Only**: Zero setup overhead if omitted.
+- **5xx / Crash Trigger Only**: Fires only for 5xx errors or uncaught server exceptions (4xx client errors and info logs are excluded).
+- **Non-Blocking Fire-and-Forget**: Runs asynchronously so database latency or outages never impact client HTTP response times.
+
+```typescript
+import { setupObservability, CrashLogEntry } from "@stacklenzz/server";
+
+setupObservability(app, {
+  serviceName: "payment-service",
+  crashLogAdaptor: {
+    save: async (entry: CrashLogEntry) => {
+      // Save entry to your database table / collection
+      await db.crashLogs.create({
+        data: {
+          id: entry.id,
+          timestamp: new Date(entry.timestamp),
+          message: entry.message,
+          stack: entry.stack,
+          route: entry.route,
+          method: entry.method,
+          statusCode: entry.statusCode,
+          breadcrumbs: entry.breadcrumbs,
+          context: entry.context,
+        },
+      });
+    },
+  },
+});
 ```
 
 ---

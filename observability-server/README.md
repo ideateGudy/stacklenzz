@@ -245,6 +245,66 @@ serve(app, (info) => console.log(`Listening on http://localhost:${info.port}`));
 
 ---
 
+## Pluggable Database Crash Log Adaptor (`crashLogAdaptor`)
+
+Persist 5xx server crashes directly to a database of your choice (PostgreSQL, MongoDB, Redis, Prisma, TypeORM, etc.).
+
+- **Opt-in Only**: If omitted, standard in-memory ring buffers function with zero overhead.
+- **5xx / Crash Trigger Only**: Fires only for 5xx HTTP responses or uncaught server crashes (4xx client errors and info logs are excluded).
+- **Non-Blocking Fire-and-Forget**: Executes asynchronously so database write latency or outages never slow down or crash client HTTP requests.
+
+### Configuration via Express:
+```typescript
+import express from "express";
+import { setupObservability, CrashLogEntry } from "@stacklenzz/server";
+
+const app = express();
+
+setupObservability(app, {
+  serviceName: "user-service",
+  crashLogAdaptor: {
+    save: async (entry: CrashLogEntry) => {
+      // Save 5xx crash log to PostgreSQL / Prisma
+      await prisma.crashLog.create({
+        data: {
+          id: entry.id,
+          timestamp: new Date(entry.timestamp),
+          message: entry.message,
+          stack: entry.stack,
+          route: entry.route,
+          method: entry.method,
+          statusCode: entry.statusCode,
+          breadcrumbs: entry.breadcrumbs,
+          context: entry.context,
+        },
+      });
+    },
+  },
+});
+```
+
+### Configuration via NestJS:
+```typescript
+import { Module } from "@nestjs/common";
+import { ObservabilityModule } from "@stacklenzz/server/nestjs";
+
+@Module({
+  imports: [
+    ObservabilityModule.forRoot({
+      serviceName: "user-service",
+      crashLogAdaptor: {
+        save: async (entry) => {
+          await db.crashLogs.insert(entry);
+        },
+      },
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+---
+
 ## Telemetry & Incident Intelligence Features
 
 ### 1. Adding Breadcrumbs
