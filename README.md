@@ -237,11 +237,12 @@ console.log("Active Requests:", snapshot.summary.activeRequests);
 
 ### 💾 Pluggable Database Crash Log Adaptor (`crashLogAdaptor`)
 
-Persist 5xx server crashes directly to your database (PostgreSQL, MongoDB, Redis, Prisma, TypeORM, etc.).
+Persist 5xx server crashes directly to your database (PostgreSQL, MongoDB, Redis, Prisma, TypeORM, etc.) and manage them directly in the UI dashboard.
 
 - **Opt-in Only**: Zero setup overhead if omitted.
 - **5xx / Crash Trigger Only**: Fires only for 5xx errors or uncaught server exceptions (4xx client errors and info logs are excluded).
 - **Non-Blocking Fire-and-Forget**: Runs asynchronously so database latency or outages never impact client HTTP response times.
+- **UI Management**: Optionally provide `list`, `delete`, and `clearAll` methods to display, delete individual logs, or purge all crash logs from the dashboard.
 
 ```typescript
 import { setupObservability, CrashLogEntry } from "@stacklenzz/server";
@@ -249,21 +250,21 @@ import { setupObservability, CrashLogEntry } from "@stacklenzz/server";
 setupObservability(app, {
   serviceName: "payment-service",
   crashLogAdaptor: {
+    // 1. Save 5xx crash log entry
     save: async (entry: CrashLogEntry) => {
-      // Save entry to your database table / collection
-      await db.crashLogs.create({
-        data: {
-          id: entry.id,
-          timestamp: new Date(entry.timestamp),
-          message: entry.message,
-          stack: entry.stack,
-          route: entry.route,
-          method: entry.method,
-          statusCode: entry.statusCode,
-          breadcrumbs: entry.breadcrumbs,
-          context: entry.context,
-        },
-      });
+      await db.crashLogs.create({ data: entry });
+    },
+    // 2. Optional: Query logs for the UI
+    list: async () => {
+      return await db.crashLogs.findMany({ orderBy: { timestamp: "desc" } });
+    },
+    // 3. Optional: Delete individual crash log from UI
+    delete: async (id: string) => {
+      await db.crashLogs.delete({ where: { id } });
+    },
+    // 4. Optional: Clear all crash logs from UI
+    clearAll: async () => {
+      await db.crashLogs.deleteMany({});
     },
   },
 });
@@ -320,13 +321,10 @@ Verify your environment, framework, and test your backend telemetry connection a
 npx stacklenzz doctor
 ```
 
-```
-🩺 Stacklenzz CLI - System & Health Doctor
-
-✓ Node.js runtime: v24.10.0 (compatible >= 18)
-✓ Package manager: npm
-✓ Frontend framework: next-app (TypeScript)
-✓ Stacklenzz UI: Installed
+Output:
+```bash
+✔ Verified Node.js environment: v22.2.0
+✔ Detected framework: Express.js (v4.19.2)
 ✓ Telemetry endpoint reachable! HTTP 200 (69ms)
    Backend service: my-nestjs-api [production]
    Requests recorded: 14,291
@@ -336,16 +334,17 @@ npx stacklenzz doctor
 
 ## 🎨 Available Dashboard Templates & 6 Runtime Themes
 
-### 6 Pre-Composed Dashboard Templates
-`@stacklenzz/ui` includes 6 distinct dashboard views with an interactive switcher:
+### 7 Pre-Composed Dashboard Templates
+`@stacklenzz/ui` includes 7 distinct dashboard views with an interactive switcher:
 
 1. **Universal Console** (`<ObservabilityDashboard />`): Master template featuring the integrated dashboard switcher and theme dropdown picker.
 2. **Full Suite** (`<FullBackendDashboard />`): Key metric cards, HTTP status distribution, latency gauges, runtime resources, top endpoints, and live error inspector.
 3. **API Overview** (`<ApiOverviewDashboard />`): High-level traffic rates, status breakdown, active requests, and endpoint volume.
 4. **Backend Performance** (`<BackendPerformanceDashboard />`): P50, P95, and P99 latency percentiles and route response times.
 5. **Error Monitoring** (`<ErrorMonitoringDashboard />`): Incident & error tracking with 4xx/5xx filters, fingerprint aggregation, occurrence count (`x4` ➔ `x2` by window), and event breadcrumbs.
-6. **Node Runtime** (`<NodeRuntimeDashboard />`): Process CPU load, RSS/Heap memory usage, and V8 event loop lag.
-7. **Minimal Widget** (`<MinimalDashboard />`): Compact card designed to be embedded in an existing admin layout.
+6. **Database Crash Logs** (`<CrashLogsDashboard />`): Dedicated view for persisted 5xx database crash logs with search, stack traces, breadcrumbs, context, and individual/clear-all delete controls.
+7. **Node Runtime** (`<NodeRuntimeDashboard />`): Process CPU load, RSS/Heap memory usage, and V8 event loop lag.
+8. **Minimal Widget** (`<MinimalDashboard />`): Compact card designed to be embedded in an existing admin layout.
 
 ### 6 Built-In Runtime Themes
 All dashboard components adapt automatically to the active theme with zero CSS configuration required:

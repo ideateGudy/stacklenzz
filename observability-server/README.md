@@ -247,11 +247,12 @@ serve(app, (info) => console.log(`Listening on http://localhost:${info.port}`));
 
 ## Pluggable Database Crash Log Adaptor (`crashLogAdaptor`)
 
-Persist 5xx server crashes directly to a database of your choice (PostgreSQL, MongoDB, Redis, Prisma, TypeORM, etc.).
+Persist 5xx server crashes directly to a database of your choice (PostgreSQL, MongoDB, Redis, Prisma, TypeORM, etc.) and manage them interactively inside the UI dashboard.
 
 - **Opt-in Only**: If omitted, standard in-memory ring buffers function with zero overhead.
 - **5xx / Crash Trigger Only**: Fires only for 5xx HTTP responses or uncaught server crashes (4xx client errors and info logs are excluded).
 - **Non-Blocking Fire-and-Forget**: Executes asynchronously so database write latency or outages never slow down or crash client HTTP requests.
+- **Full UI Deletion & Sync**: Provide `list`, `delete`, and `clearAll` handlers to inspect, filter, delete individual logs, or purge all database crash logs directly from the UI.
 
 ### Configuration via Express:
 ```typescript
@@ -263,21 +264,21 @@ const app = express();
 setupObservability(app, {
   serviceName: "user-service",
   crashLogAdaptor: {
+    // 1. Save 5xx crash log
     save: async (entry: CrashLogEntry) => {
-      // Save 5xx crash log to PostgreSQL / Prisma
-      await prisma.crashLog.create({
-        data: {
-          id: entry.id,
-          timestamp: new Date(entry.timestamp),
-          message: entry.message,
-          stack: entry.stack,
-          route: entry.route,
-          method: entry.method,
-          statusCode: entry.statusCode,
-          breadcrumbs: entry.breadcrumbs,
-          context: entry.context,
-        },
-      });
+      await prisma.crashLog.create({ data: entry });
+    },
+    // 2. Query logs for the UI
+    list: async () => {
+      return await prisma.crashLog.findMany({ orderBy: { timestamp: "desc" } });
+    },
+    // 3. Delete individual log from UI
+    delete: async (id: string) => {
+      await prisma.crashLog.delete({ where: { id } });
+    },
+    // 4. Clear all logs from UI
+    clearAll: async () => {
+      await prisma.crashLog.deleteMany({});
     },
   },
 });

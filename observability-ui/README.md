@@ -22,12 +22,13 @@ Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphis
   - Powered by `@reduxjs/toolkit` (`createSlice`, `configureStore`) and `react-redux` (`Provider`, `useSelector`, `useDispatch`).
   - Automatic `localStorage` persistence under key `stacklenzz_theme` — theme selection persists seamlessly across reloads and navigation.
   - Dynamic full-page theme color propagation affecting card backgrounds, text typography, borders, badges, and charts.
-- **6 Pre-Composed Dashboard Templates**:
+- **7 Pre-Composed Dashboard Templates**:
   - `<ObservabilityDashboard />`: All-in-one suite with a built-in interactive template switcher and theme dropdown picker.
   - `<FullBackendDashboard />`: Complete view with overview cards, HTTP breakdown charts, latency gauge, runtime health, and live error inspector.
   - `<ApiOverviewDashboard />`: High-level traffic, status codes, top endpoints overview.
   - `<BackendPerformanceDashboard />`: Latencies (P50, P95, P99), response time breakdown, and endpoint timings.
   - `<ErrorMonitoringDashboard />`: Live error tracker, 4xx/5xx streams, occurrences counter, and breadcrumbs.
+  - `<CrashLogsDashboard />`: Dedicated database 5xx crash log console with search, stack traces, breadcrumbs, context, individual delete, and clear-all controls.
   - `<NodeRuntimeDashboard />`: Node.js process health (CPU, RSS, Heap memory, Event loop lag).
   - `<MinimalDashboard />`: Compact status widget suitable for embedding in existing admin sidebars or headers.
 - **6 Built-in Runtime Themes**:
