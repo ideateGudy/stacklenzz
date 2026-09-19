@@ -78,10 +78,14 @@ const crashLogSchema = new mongoose.Schema(
 const CrashLogModel = mongoose.models.NestCrashLog || mongoose.model("NestCrashLog", crashLogSchema);
 
 // Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("🌱 [NestJS API] Connected to MongoDB for persistent 5xx crash logging"))
-  .catch((err) => console.error("⚠️ [NestJS API] MongoDB Connection Error:", err.message));
+if (MONGODB_URI) {
+  mongoose
+    .connect(MONGODB_URI)
+    .then(() => console.log("🌱 [NestJS API] Connected to MongoDB for persistent 5xx crash logging"))
+    .catch((err) => console.error("⚠️ [NestJS API] MongoDB Connection Error:", err.message));
+} else {
+  console.warn("⚠️ [NestJS API] MONGODB_URI is missing in process.env! Check your .env file.");
+}
 
 @Module({
   imports: [

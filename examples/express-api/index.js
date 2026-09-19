@@ -48,10 +48,14 @@ const crashLogSchema = new mongoose.Schema(
 const CrashLogModel = mongoose.models.CrashLog || mongoose.model("CrashLog", crashLogSchema);
 
 // Connect to MongoDB
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("🌱 [Express API] Connected to MongoDB for persistent 5xx crash logging"))
-  .catch((err) => console.error("⚠️ [Express API] MongoDB Connection Error:", err.message));
+if (MONGODB_URI) {
+  mongoose
+    .connect(MONGODB_URI)
+    .then(() => console.log("🌱 [Express API] Connected to MongoDB for persistent 5xx crash logging"))
+    .catch((err) => console.error("⚠️ [Express API] MongoDB Connection Error:", err.message));
+} else {
+  console.warn("⚠️ [Express API] MONGODB_URI is missing in process.env! Check your .env file.");
+}
 
 // One-liner attaches:
 // 1. Request latency & throughput monitoring
