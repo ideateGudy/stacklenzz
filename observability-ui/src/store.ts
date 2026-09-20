@@ -1,4 +1,3 @@
-import { configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { RuntimeTheme, RUNTIME_THEMES } from "./themes.js";
 
 export const LOCAL_STORAGE_THEME_KEY = "stacklenzz_theme";
@@ -39,72 +38,85 @@ export function persistTheme(theme: RuntimeTheme): void {
   }
 }
 
-const initialState: ObservabilityState = {
-  theme: getSavedTheme("tokyo-night"),
+export const themeSlice = {
+  name: "observability",
+  reducer: observabilityReducer,
+  actions: {
+    setTheme,
+  },
 };
 
-/**
- * Redux Toolkit Slice for Observability Theme State
- */
-export const themeSlice = createSlice({
-  name: "observability",
-  initialState,
-  reducers: {
-    setTheme: (state, action: PayloadAction<RuntimeTheme>) => {
-      if (action.payload in RUNTIME_THEMES) {
-        state.theme = action.payload;
-        persistTheme(action.payload);
-      }
-    },
-  },
-});
+export const SET_THEME = "observability/setTheme";
 
-export const { setTheme } = themeSlice.actions;
+export function setTheme(theme: RuntimeTheme) {
+  return {
+    type: SET_THEME,
+    payload: theme,
+  };
+}
 
-// Compatibility aliases
-export const setThemeAction = (theme: RuntimeTheme) => setTheme(theme);
-export const SET_THEME = themeSlice.actions.setTheme.type;
+export const setThemeAction = setTheme;
+
+export interface Action<T = any> {
+  type: string;
+  payload?: T;
+}
+
+export interface ObservabilityStore {
+  getState: () => { observability: ObservabilityState };
+  dispatch: (action: Action) => Action;
+  subscribe: (listener: () => void) => () => void;
+}
 
 export function observabilityReducer(
-  state: ObservabilityState | undefined,
-  action: any
+  state: ObservabilityState = { theme: getSavedTheme("tokyo-night") },
+  action: Action
 ): ObservabilityState {
-  return themeSlice.reducer(state, action);
+  if (action && (action.type === SET_THEME || action.type === "observability/setTheme")) {
+    if (action.payload in RUNTIME_THEMES) {
+      persistTheme(action.payload);
+      return { ...state, theme: action.payload };
+    }
+  }
+  return state;
 }
 
 /**
- * Create a Redux Toolkit Store configured with observability slice and localStorage persistence
+ * Create a lightweight native store matching the store interface for backward compatibility
  */
-export function createObservabilityStore(initialTheme?: RuntimeTheme) {
+export function createObservabilityStore(initialTheme?: RuntimeTheme): ObservabilityStore {
   const resolvedInitialTheme =
     initialTheme && initialTheme in RUNTIME_THEMES
       ? initialTheme
       : getSavedTheme("tokyo-night");
 
-  const store = configureStore({
-    reducer: {
-      observability: themeSlice.reducer,
-    },
-    preloadedState: {
-      observability: {
-        theme: resolvedInitialTheme,
-      },
-    },
-  });
+  let currentState: ObservabilityState = {
+    theme: resolvedInitialTheme,
+  };
 
-  store.subscribe(() => {
-    const state = store.getState();
-    persistTheme(state.observability.theme);
-  });
+  const listeners = new Set<() => void>();
 
-  return store;
+  return {
+    getState: () => ({
+      observability: currentState,
+    }),
+    dispatch: (action: Action) => {
+      currentState = observabilityReducer(currentState, action);
+      listeners.forEach((listener) => listener());
+      return action;
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
 }
 
-export type ObservabilityStore = ReturnType<typeof createObservabilityStore>;
 export type RootState = ReturnType<ObservabilityStore["getState"]>;
 export type AppDispatch = ObservabilityStore["dispatch"];
 
-// Singleton default store
 let defaultStore: ObservabilityStore | null = null;
 
 export function getDefaultObservabilityStore(initialTheme?: RuntimeTheme): ObservabilityStore {

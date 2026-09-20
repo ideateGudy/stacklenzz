@@ -134,8 +134,8 @@ describe("Observability UI Components & Templates Test Suite", () => {
     });
   });
 
-  describe("Redux Toolkit State Management & LocalStorage Persistence", () => {
-    it("should export Redux Toolkit store primitives, slices, and action creators", () => {
+  describe("Native State Management & LocalStorage Persistence", () => {
+    it("should export store primitives, slices, and action creators", () => {
       expect(UI.createObservabilityStore).toBeDefined();
       expect(UI.themeSlice).toBeDefined();
       expect(UI.setTheme).toBeDefined();

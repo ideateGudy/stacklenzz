@@ -1,13 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { Provider as ReduxProvider, useSelector, useDispatch } from "react-redux";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { ObservabilitySnapshot, ObservabilityConfig } from "./types.js";
 import { generateMockSnapshot } from "./mock.js";
 import { RuntimeTheme, ThemeColors, RUNTIME_THEMES } from "./themes.js";
 import {
   ObservabilityStore,
   createObservabilityStore,
-  setTheme,
-  RootState,
+  getSavedTheme,
+  persistTheme,
 } from "./store.js";
 
 export interface ObservabilityContextValue {
@@ -44,38 +43,6 @@ export function ObservabilityProvider({
     return <>{children}</>;
   }
 
-  const initialConfigTheme: RuntimeTheme | undefined =
-    config.theme && config.theme in RUNTIME_THEMES
-      ? (config.theme as RuntimeTheme)
-      : undefined;
-
-  const [store] = useState<ObservabilityStore>(() =>
-    createObservabilityStore(initialConfigTheme)
-  );
-
-  return (
-    <ReduxProvider store={store}>
-      <ObservabilityProviderInner
-        config={config}
-        initialSnapshot={initialSnapshot}
-        store={store}
-      >
-        {children}
-      </ObservabilityProviderInner>
-    </ReduxProvider>
-  );
-}
-
-interface InnerProps extends ObservabilityProviderProps {
-  store: ObservabilityStore;
-}
-
-function ObservabilityProviderInner({
-  children,
-  config = {},
-  initialSnapshot,
-  store,
-}: InnerProps) {
   const [snapshot, setSnapshot] = useState<ObservabilitySnapshot | null>(
     initialSnapshot || null
   );
@@ -85,12 +52,21 @@ function ObservabilityProviderInner({
     initialSnapshot ? new Date() : null
   );
 
+  const initialConfigTheme: RuntimeTheme =
+    config.theme && config.theme in RUNTIME_THEMES
+      ? (config.theme as RuntimeTheme)
+      : getSavedTheme("tokyo-night");
+
+  const [theme, setThemeState] = useState<RuntimeTheme>(initialConfigTheme);
+
+  // Maintain lightweight store for backward compatibility
+  const [store] = useState<ObservabilityStore>(() =>
+    createObservabilityStore(initialConfigTheme)
+  );
+
   const endpoint = config.endpoint || "/api/observability/stats";
   const refreshIntervalMs = config.refreshIntervalMs ?? 5000;
   const isMock = config.mockMode ?? false;
-
-  const dispatch = useDispatch();
-  const theme = useSelector((state: RootState) => state.observability.theme);
 
   const fetchTelemetry = useCallback(async () => {
     if (isMock) {
@@ -136,25 +112,37 @@ function ObservabilityProviderInner({
 
   useEffect(() => {
     if (config.theme && config.theme in RUNTIME_THEMES && config.theme !== theme) {
-      dispatch(setTheme(config.theme as RuntimeTheme));
+      setThemeState(config.theme as RuntimeTheme);
+      persistTheme(config.theme as RuntimeTheme);
     }
-  }, [config.theme, theme, dispatch]);
+  }, [config.theme, theme]);
 
   const handleSetTheme = useCallback(
     (newTheme: RuntimeTheme) => {
-      dispatch(setTheme(newTheme));
+      if (newTheme in RUNTIME_THEMES) {
+        setThemeState(newTheme);
+        persistTheme(newTheme);
+        store.dispatch({ type: "observability/setTheme", payload: newTheme });
+      }
     },
-    [dispatch]
+    [store]
   );
 
-  const themeColors = RUNTIME_THEMES[theme] || RUNTIME_THEMES["tokyo-night"];
+  const themeColors = useMemo(
+    () => RUNTIME_THEMES[theme] || RUNTIME_THEMES["tokyo-night"],
+    [theme]
+  );
 
   const deleteCrashLog = useCallback(
     async (id: string): Promise<boolean> => {
       // Optimistically update snapshot in local state
       setSnapshot((prev) => {
         if (!prev) return null;
-        const currentList = prev.dbCrashLogs || (prev.recentErrors || []).filter((e) => !e.statusCode || e.statusCode >= 500);
+        const currentList =
+          prev.dbCrashLogs ||
+          (prev.recentErrors || []).filter(
+            (e) => !e.statusCode || e.statusCode >= 500
+          );
         const updated = currentList.filter((l) => l.id !== id);
         return {
           ...prev,
@@ -208,26 +196,45 @@ function ObservabilityProviderInner({
 
   const dbCrashLogs =
     snapshot?.dbCrashLogs ||
-    (snapshot?.recentErrors || []).filter((e) => !e.statusCode || e.statusCode >= 500);
+    (snapshot?.recentErrors || []).filter(
+      (e) => !e.statusCode || e.statusCode >= 500
+    );
+
+  const value = useMemo<ObservabilityContextValue>(
+    () => ({
+      snapshot,
+      isLoading,
+      error,
+      lastUpdated,
+      refresh: fetchTelemetry,
+      isMock,
+      theme,
+      setTheme: handleSetTheme,
+      themeColors,
+      store,
+      dbCrashLogs,
+      deleteCrashLog,
+      clearAllCrashLogs,
+    }),
+    [
+      snapshot,
+      isLoading,
+      error,
+      lastUpdated,
+      fetchTelemetry,
+      isMock,
+      theme,
+      handleSetTheme,
+      themeColors,
+      store,
+      dbCrashLogs,
+      deleteCrashLog,
+      clearAllCrashLogs,
+    ]
+  );
 
   return (
-    <ObservabilityContext.Provider
-      value={{
-        snapshot,
-        isLoading,
-        error,
-        lastUpdated,
-        refresh: fetchTelemetry,
-        isMock,
-        theme,
-        setTheme: handleSetTheme,
-        themeColors,
-        store,
-        dbCrashLogs,
-        deleteCrashLog,
-        clearAllCrashLogs,
-      }}
-    >
+    <ObservabilityContext.Provider value={value}>
       {children}
     </ObservabilityContext.Provider>
   );
