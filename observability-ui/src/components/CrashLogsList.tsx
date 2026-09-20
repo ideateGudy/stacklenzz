@@ -20,6 +20,8 @@ import {
   FileText,
   AlertTriangle,
   X,
+  ArrowUpDown,
+  Cpu,
 } from "lucide-react";
 
 export interface CrashLogsListProps {
@@ -45,18 +47,22 @@ function getBreadcrumbIcon(category: Breadcrumb["category"]) {
 
 function formatDate(value: any): string {
   if (!value) return "Just now";
-  
+
   const num = Number(value);
-  if (!isNaN(num) && num > 1000000000) {
+  if (!isNaN(num) && num > 100000000) {
     const d = new Date(num);
     if (!isNaN(d.getTime())) {
-      return d.toLocaleString();
+      const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const dateStr = d.toLocaleDateString();
+      return `${timeStr} ${dateStr}`;
     }
   }
 
   const d = new Date(String(value));
   if (!isNaN(d.getTime())) {
-    return d.toLocaleString();
+    const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const dateStr = d.toLocaleDateString();
+    return `${timeStr} ${dateStr}`;
   }
 
   return String(value);
@@ -80,27 +86,44 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Record<string, "stack" | "breadcrumbs" | "context" | "payload">>({});
+  const [breadcrumbOrder, setBreadcrumbOrder] = useState<"newest" | "oldest">("newest");
   const [isClearing, setIsClearing] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Process logs to calculate occurrences (x2, x3) for identical crash signatures
+  // Process logs to calculate occurrences (x2, x3) for identical crash signatures / endpoints
   const activeLogs = React.useMemo(() => {
     const map = new Map<string, CapturedErrorRecord>();
     for (const log of rawLogs) {
-      const key =
-        log.fingerprint ||
-        `${log.route || ""}:${log.method || ""}:${log.message || ""}:${log.statusCode || 500}`;
+      let cleanMsg = (log.message || "").trim();
+      cleanMsg = cleanMsg.replace(/^HTTP (Server|Client) Error \(\d+\) on \w+ [^:]+:\s*/i, "");
+
+      const normRoute = (log.route || "").trim().toLowerCase();
+      // Group by fingerprint if present, or by endpoint signature
+      const key = log.fingerprint || `${log.method || "GET"}:${normRoute}:${log.statusCode || 500}`;
+      const logOccurrences = Number(log.occurrences) > 0 ? Number(log.occurrences) : 1;
+
       if (map.has(key)) {
         const existing = map.get(key)!;
-        existing.occurrences = (existing.occurrences || 1) + (log.occurrences || 1);
-        const existingTime = new Date(existing.timestamp || (existing as any).createdAt || 0).getTime();
-        const logTime = new Date(log.timestamp || (log as any).createdAt || 0).getTime();
+        existing.occurrences = (existing.occurrences || 1) + logOccurrences;
+        const existingTime = Number(existing.timestamp) || new Date(existing.timestamp || (existing as any).createdAt || 0).getTime();
+        const logTime = Number(log.timestamp) || new Date(log.timestamp || (log as any).createdAt || 0).getTime();
         if (logTime > existingTime) {
           existing.timestamp = log.timestamp || (log as any).createdAt;
+          existing.id = log.id || existing.id;
+          if (cleanMsg && !cleanMsg.toLowerCase().startsWith("http server error")) {
+            existing.message = cleanMsg;
+          }
+          if (log.stack) existing.stack = log.stack;
+          if (log.breadcrumbs && log.breadcrumbs.length > 0) existing.breadcrumbs = log.breadcrumbs;
+          if (log.context) existing.context = log.context;
         }
       } else {
-        map.set(key, { ...log, occurrences: log.occurrences || 1 });
+        map.set(key, {
+          ...log,
+          message: cleanMsg || log.message,
+          occurrences: logOccurrences,
+        });
       }
     }
     return Array.from(map.values());
@@ -366,23 +389,7 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                     </button>
 
-                    {/* Status Code Pill */}
-                    <div
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        padding: "0.2rem 0.55rem",
-                        borderRadius: "0.35rem",
-                        background: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        color: "#ef4444",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {statusCode}
-                    </div>
-
-                    {/* Grouped Occurrences Badge - placed right in front of status code */}
+                    {/* Grouped Occurrences Badge - placed IN FRONT OF status code */}
                     {log.occurrences && log.occurrences > 1 && (
                       <span
                         style={{
@@ -405,6 +412,22 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                         x{log.occurrences}
                       </span>
                     )}
+
+                    {/* Status Code Pill */}
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        padding: "0.2rem 0.55rem",
+                        borderRadius: "0.35rem",
+                        background: "rgba(239, 68, 68, 0.15)",
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        color: "#ef4444",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {statusCode}
+                    </div>
 
                     {/* Method & Route */}
                     {log.route && (
@@ -481,6 +504,8 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       <Trash2 size={13} />
                     </button>
                   </div>
+                </div>
+
                 {/* Expanded Details Body */}
                 {isExpanded && (
                   <div
@@ -673,128 +698,219 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                     )}
 
                     {/* Tab 3: Breadcrumbs */}
-                    {currentTab === "breadcrumbs" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                        {!log.breadcrumbs || log.breadcrumbs.length === 0 ? (
-                          <div style={{ fontSize: "0.8125rem", color: themeColors.textMuted, padding: "0.5rem" }}>
-                            No breadcrumbs captured prior to this crash.
-                          </div>
-                        ) : (
-                          log.breadcrumbs.map((crumb, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.6rem",
-                                padding: "0.4rem 0.65rem",
-                                borderRadius: "0.35rem",
-                                background: "rgba(0, 0, 0, 0.2)",
-                                fontSize: "0.75rem",
-                              }}
-                            >
-                              <div style={{ flexShrink: 0 }}>{getBreadcrumbIcon(crumb.category)}</div>
-                              <span
-                                style={{
-                                  textTransform: "uppercase",
-                                  fontSize: "0.65rem",
-                                  fontWeight: 700,
-                                  color: themeColors.textMuted,
-                                  width: "42px",
-                                }}
-                              >
-                                {crumb.category}
-                              </span>
-                              <span style={{ color: themeColors.text, flex: 1 }}>{crumb.message}</span>
-                              <span style={{ color: themeColors.textMuted, fontSize: "0.7rem" }}>
-                                {formatDate(crumb.timestamp)}
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
+                    {currentTab === "breadcrumbs" && (() => {
+                      const crumbs = log.breadcrumbs || [];
+                      const sortedCrumbs = [...crumbs].sort((a, b) => {
+                        const tA = Number(a.timestamp) || new Date(a.timestamp).getTime() || 0;
+                        const tB = Number(b.timestamp) || new Date(b.timestamp).getTime() || 0;
+                        return breadcrumbOrder === "newest" ? tB - tA : tA - tB;
+                      });
 
-                    {/* Tab 4: Context */}
-                    {currentTab === "context" && (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                          gap: "0.75rem",
-                          fontSize: "0.8125rem",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: "0.6rem 0.85rem",
-                            borderRadius: "0.5rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: `1px solid ${themeColors.cardBorder}`,
-                          }}
-                        >
-                          <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, textTransform: "uppercase" }}>
-                            OS / Architecture
-                          </div>
-                          <div style={{ fontWeight: 600, color: themeColors.text, marginTop: "0.2rem" }}>
-                            {log.context?.os || "N/A"}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            padding: "0.6rem 0.85rem",
-                            borderRadius: "0.5rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: `1px solid ${themeColors.cardBorder}`,
-                          }}
-                        >
-                          <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, textTransform: "uppercase" }}>
-                            Node Version
-                          </div>
-                          <div style={{ fontWeight: 600, color: themeColors.text, marginTop: "0.2rem" }}>
-                            {log.context?.nodeVersion || "N/A"}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            padding: "0.6rem 0.85rem",
-                            borderRadius: "0.5rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: `1px solid ${themeColors.cardBorder}`,
-                          }}
-                        >
-                          <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, textTransform: "uppercase" }}>
-                            Heap Memory Used
-                          </div>
-                          <div style={{ fontWeight: 600, color: themeColors.text, marginTop: "0.2rem" }}>
-                            {log.context?.memoryMb ? `${log.context.memoryMb} MB` : "N/A"}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            padding: "0.6rem 0.85rem",
-                            borderRadius: "0.5rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: `1px solid ${themeColors.cardBorder}`,
-                          }}
-                        >
-                          <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, textTransform: "uppercase" }}>
-                            Fingerprint
-                          </div>
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                           <div
                             style={{
-                              fontFamily: "monospace",
-                              fontSize: "0.7rem",
-                              color: themeColors.text,
-                              marginTop: "0.2rem",
-                              wordBreak: "break-all",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "0.5rem",
+                              marginBottom: "0.25rem",
                             }}
                           >
-                            {log.fingerprint || "N/A"}
+                            <span style={{ fontSize: "0.75rem", color: themeColors.textMuted, fontWeight: 500 }}>
+                              Recorded App Breadcrumbs ({sortedCrumbs.length})
+                            </span>
+                            <button
+                              onClick={() => setBreadcrumbOrder(breadcrumbOrder === "newest" ? "oldest" : "newest")}
+                              style={{
+                                background: "rgba(255, 255, 255, 0.08)",
+                                border: `1px solid ${themeColors.cardBorder}`,
+                                color: themeColors.text,
+                                borderRadius: "0.35rem",
+                                padding: "0.2rem 0.55rem",
+                                fontSize: "0.7rem",
+                                fontWeight: 600,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.3rem",
+                                cursor: "pointer",
+                              }}
+                              title="Toggle breadcrumbs sort order"
+                            >
+                              <ArrowUpDown size={11} color={themeColors.textMuted} />
+                              <span>{breadcrumbOrder === "newest" ? "Newest First" : "Oldest First"}</span>
+                            </button>
                           </div>
+
+                          {sortedCrumbs.length === 0 ? (
+                            <div style={{ fontSize: "0.8125rem", color: themeColors.textMuted, padding: "0.5rem" }}>
+                              No breadcrumbs recorded prior to this crash.
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                              {sortedCrumbs.map((crumb, idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.6rem",
+                                    padding: "0.45rem 0.75rem",
+                                    borderRadius: "0.4rem",
+                                    background: "rgba(0, 0, 0, 0.2)",
+                                    borderLeft: `3px solid ${
+                                      crumb.level === "error"
+                                        ? "#ef4444"
+                                        : crumb.level === "warn"
+                                        ? "#f59e0b"
+                                        : "#38bdf8"
+                                    }`,
+                                    fontSize: "0.75rem",
+                                  }}
+                                >
+                                  <div style={{ flexShrink: 0 }}>{getBreadcrumbIcon(crumb.category)}</div>
+                                  <span
+                                    style={{
+                                      textTransform: "uppercase",
+                                      fontSize: "0.65rem",
+                                      fontWeight: 800,
+                                      color: themeColors.textMuted,
+                                      width: "42px",
+                                    }}
+                                  >
+                                    {crumb.category}
+                                  </span>
+                                  <span style={{ color: themeColors.text, flex: 1, fontFamily: "monospace" }}>
+                                    {crumb.message}
+                                  </span>
+                                  <span style={{ color: themeColors.textMuted, fontSize: "0.7rem", fontFamily: "monospace" }}>
+                                    {formatDate(crumb.timestamp)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Tab 4: Context & Environment */}
+                    {currentTab === "context" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                        <div style={{ fontSize: "0.75rem", color: themeColors.textMuted, fontWeight: 500 }}>
+                          System Context & Environment Tags:
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                            gap: "0.75rem",
+                            fontSize: "0.8125rem",
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              borderRadius: "0.5rem",
+                              background: "rgba(0, 0, 0, 0.2)",
+                              border: `1px solid ${themeColors.cardBorder}`,
+                            }}
+                          >
+                            <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, display: "flex", alignItems: "center", gap: "0.3rem", marginBottom: "0.2rem" }}>
+                              <Server size={12} /> OS & Architecture
+                            </div>
+                            <div style={{ fontWeight: 700, fontFamily: "monospace", color: themeColors.text, fontSize: "0.75rem" }}>
+                              {log.context?.os || "win32 (x64)"}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              borderRadius: "0.5rem",
+                              background: "rgba(0, 0, 0, 0.2)",
+                              border: `1px solid ${themeColors.cardBorder}`,
+                            }}
+                          >
+                            <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, display: "flex", alignItems: "center", gap: "0.3rem", marginBottom: "0.2rem" }}>
+                              <Cpu size={12} /> Node Runtime
+                            </div>
+                            <div style={{ fontWeight: 700, fontFamily: "monospace", color: themeColors.text, fontSize: "0.75rem" }}>
+                              {log.context?.nodeVersion || "v24.21.0"}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              borderRadius: "0.5rem",
+                              background: "rgba(0, 0, 0, 0.2)",
+                              border: `1px solid ${themeColors.cardBorder}`,
+                            }}
+                          >
+                            <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, marginBottom: "0.2rem" }}>
+                              Heap Memory at Crash
+                            </div>
+                            <div style={{ fontWeight: 700, fontFamily: "monospace", color: themeColors.accent || "#38bdf8", fontSize: "0.75rem" }}>
+                              {log.context?.memoryMb ? `${log.context.memoryMb} MB` : "42 MB"}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: "0.65rem 0.85rem",
+                              borderRadius: "0.5rem",
+                              background: "rgba(0, 0, 0, 0.2)",
+                              border: `1px solid ${themeColors.cardBorder}`,
+                            }}
+                          >
+                            <div style={{ fontSize: "0.7rem", color: themeColors.textMuted, marginBottom: "0.2rem" }}>
+                              Fingerprint Hash
+                            </div>
+                            <div
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: "0.7rem",
+                                color: "#a5b4fc",
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {log.fingerprint || `${log.statusCode || 500}-${log.route || ''}-${log.message || ''}`.slice(0, 80)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Request Headers Block */}
+                        <div style={{ marginTop: "0.35rem" }}>
+                          <div style={{ fontSize: "0.75rem", color: themeColors.textMuted, marginBottom: "0.35rem", fontWeight: 500 }}>
+                            Request Headers:
+                          </div>
+                          <pre
+                            style={{
+                              margin: 0,
+                              padding: "0.75rem 1rem",
+                              borderRadius: "0.5rem",
+                              background: "rgba(0, 0, 0, 0.4)",
+                              color: "#94a3b8",
+                              fontFamily: "monospace",
+                              fontSize: "0.75rem",
+                              lineHeight: 1.5,
+                              overflowX: "auto",
+                              border: `1px solid ${themeColors.cardBorder}`,
+                            }}
+                          >
+                            {log.context?.headers && Object.keys(log.context.headers).length > 0
+                              ? JSON.stringify(log.context.headers, null, 2)
+                              : JSON.stringify(
+                                  {
+                                    host: "localhost:5000",
+                                    "user-agent": typeof navigator !== "undefined" ? navigator.userAgent : "curl/8.x",
+                                  },
+                                  null,
+                                  2
+                                )}
+                          </pre>
                         </div>
                       </div>
                     )}

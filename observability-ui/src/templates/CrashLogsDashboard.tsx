@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { ObservabilityProvider, useObservability } from "../context.js";
 import { ServiceHeader } from "../components/ServiceHeader.js";
 import { MetricCard, MetricGrid } from "../components/MetricCard.js";
@@ -15,9 +15,27 @@ function CrashLogsDashboardContent() {
   if (!snapshot) return null;
   const s = snapshot;
 
-  const totalCrashes = dbCrashLogs.length;
-  const uniqueRoutes = new Set(dbCrashLogs.map((l) => l.route || "general")).size;
-  const totalOccurrences = dbCrashLogs.reduce((acc, l) => acc + (l.occurrences || 1), 0);
+  // Deduplicate raw database crash log entries by endpoint signature for dashboard metric cards
+  const deduplicatedCrashLogs = React.useMemo(() => {
+    const map = new Map<string, typeof dbCrashLogs[0]>();
+    for (const log of dbCrashLogs) {
+      let cleanMsg = (log.message || "").trim().replace(/^HTTP (Server|Client) Error \(\d+\) on \w+ [^:]+:\s*/i, "");
+      const normRoute = (log.route || "").trim().toLowerCase();
+      const key = `${log.method || "GET"}:${normRoute}:${log.statusCode || 500}`;
+
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.occurrences = (existing.occurrences || 1) + (log.occurrences || 1);
+      } else {
+        map.set(key, { ...log, occurrences: log.occurrences || 1 });
+      }
+    }
+    return Array.from(map.values());
+  }, [dbCrashLogs]);
+
+  const totalCrashes = deduplicatedCrashLogs.length;
+  const uniqueRoutes = new Set(deduplicatedCrashLogs.map((l) => l.route || "general")).size;
+  const totalOccurrences = deduplicatedCrashLogs.reduce((acc, l) => acc + (l.occurrences || 1), 0);
 
   return (
     <div

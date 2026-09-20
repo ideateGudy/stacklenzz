@@ -82,6 +82,50 @@ function DashboardContent() {
 
   const s = snapshot!;
 
+  let currentErrorRate = s.summary.errorRate;
+  let windowSubtitle = "All-time cumulative";
+  let errorCount = Math.round((s.summary.totalRequests * s.summary.errorRate) / 100);
+
+  if (s.windows) {
+    if (errorWindow === "1m") {
+      currentErrorRate = s.windows.last1m.errorRate;
+      errorCount = s.windows.last1m.errorRequests;
+      windowSubtitle = `Last 1 min (${s.windows.last1m.totalRequests} reqs)`;
+    } else if (errorWindow === "5m") {
+      currentErrorRate = s.windows.last5m.errorRate;
+      errorCount = s.windows.last5m.errorRequests;
+      windowSubtitle = `Last 5 min (${s.windows.last5m.totalRequests} reqs)`;
+    } else if (errorWindow === "15m") {
+      currentErrorRate = s.windows.last15m.errorRate;
+      errorCount = s.windows.last15m.errorRequests;
+      windowSubtitle = `Last 15 min (${s.windows.last15m.totalRequests} reqs)`;
+    } else if (errorWindow === "30m") {
+      currentErrorRate = s.windows.last30m.errorRate;
+      errorCount = s.windows.last30m.errorRequests;
+      windowSubtitle = `Last 30 min (${s.windows.last30m.totalRequests} reqs)`;
+    } else if (errorWindow === "1h") {
+      currentErrorRate = s.windows.last1h.errorRate;
+      errorCount = s.windows.last1h.errorRequests;
+      windowSubtitle = `Last 1 hour (${s.windows.last1h.totalRequests} reqs)`;
+    } else if (errorWindow === "2h") {
+      currentErrorRate = s.windows.last2h.errorRate;
+      errorCount = s.windows.last2h.errorRequests;
+      windowSubtitle = `Last 2 hours (${s.windows.last2h.totalRequests} reqs)`;
+    } else if (errorWindow === "24h") {
+      currentErrorRate = s.windows.last24h.errorRate;
+      errorCount = s.windows.last24h.errorRequests;
+      windowSubtitle = `Last 24 hours (${s.windows.last24h.totalRequests} reqs)`;
+    } else if (errorWindow === "7d") {
+      currentErrorRate = s.windows.last7d.errorRate;
+      errorCount = s.windows.last7d.errorRequests;
+      windowSubtitle = `Last 7 days (${s.windows.last7d.totalRequests} reqs)`;
+    } else if (errorWindow === "30d") {
+      currentErrorRate = s.windows.last30d.errorRate;
+      errorCount = s.windows.last30d.errorRequests;
+      windowSubtitle = `Last 30 days (${s.windows.last30d.totalRequests} reqs)`;
+    }
+  }
+
   return (
     <div
       style={{
@@ -96,6 +140,7 @@ function DashboardContent() {
         onRefresh={refresh}
         isRefreshing={isLoading}
         isMock={isMock}
+        activeErrorRate={currentErrorRate}
       />
 
       {/* Top 4 Key Metric Cards */}
@@ -108,89 +153,41 @@ function DashboardContent() {
           icon={<Activity size={18} color="#38bdf8" />}
           statusColor="blue"
         />
-        {(() => {
-          let currentErrorRate = s.summary.errorRate;
-          let windowSubtitle = "All-time cumulative";
-          let errorCount = Math.round((s.summary.totalRequests * s.summary.errorRate) / 100);
-
-          if (s.windows) {
-            if (errorWindow === "1m") {
-              currentErrorRate = s.windows.last1m.errorRate;
-              errorCount = s.windows.last1m.errorRequests;
-              windowSubtitle = `Last 1 min (${s.windows.last1m.totalRequests} reqs)`;
-            } else if (errorWindow === "5m") {
-              currentErrorRate = s.windows.last5m.errorRate;
-              errorCount = s.windows.last5m.errorRequests;
-              windowSubtitle = `Last 5 min (${s.windows.last5m.totalRequests} reqs)`;
-            } else if (errorWindow === "15m") {
-              currentErrorRate = s.windows.last15m.errorRate;
-              errorCount = s.windows.last15m.errorRequests;
-              windowSubtitle = `Last 15 min (${s.windows.last15m.totalRequests} reqs)`;
-            } else if (errorWindow === "30m") {
-              currentErrorRate = s.windows.last30m.errorRate;
-              errorCount = s.windows.last30m.errorRequests;
-              windowSubtitle = `Last 30 min (${s.windows.last30m.totalRequests} reqs)`;
-            } else if (errorWindow === "1h") {
-              currentErrorRate = s.windows.last1h.errorRate;
-              errorCount = s.windows.last1h.errorRequests;
-              windowSubtitle = `Last 1 hour (${s.windows.last1h.totalRequests} reqs)`;
-            } else if (errorWindow === "2h") {
-              currentErrorRate = s.windows.last2h.errorRate;
-              errorCount = s.windows.last2h.errorRequests;
-              windowSubtitle = `Last 2 hours (${s.windows.last2h.totalRequests} reqs)`;
-            } else if (errorWindow === "24h") {
-              currentErrorRate = s.windows.last24h.errorRate;
-              errorCount = s.windows.last24h.errorRequests;
-              windowSubtitle = `Last 24 hours (${s.windows.last24h.totalRequests} reqs)`;
-            } else if (errorWindow === "7d") {
-              currentErrorRate = s.windows.last7d.errorRate;
-              errorCount = s.windows.last7d.errorRequests;
-              windowSubtitle = `Last 7 days (${s.windows.last7d.totalRequests} reqs)`;
-            } else if (errorWindow === "30d") {
-              currentErrorRate = s.windows.last30d.errorRate;
-              errorCount = s.windows.last30d.errorRequests;
-              windowSubtitle = `Last 30 days (${s.windows.last30d.totalRequests} reqs)`;
-            }
+        <MetricCard
+          title="Error Rate"
+          value={`${currentErrorRate}%`}
+          subtitle={`${errorCount} errors | ${windowSubtitle}`}
+          trend={{ value: currentErrorRate > 1 ? "+Degraded" : "Normal", isPositive: currentErrorRate <= 1 }}
+          icon={<AlertTriangle size={18} color={currentErrorRate > 1 ? "#ef4444" : "#10b981"} />}
+          rightElement={
+            <select
+              value={errorWindow}
+              onChange={(e) => setErrorWindow(e.target.value as any)}
+              style={{
+                background: "rgba(15, 23, 42, 0.9)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                borderRadius: "0.375rem",
+                color: "#94a3b8",
+                fontSize: "0.75rem",
+                padding: "0.2rem 0.4rem",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="all">All-time</option>
+              <option value="1m">Last 1 min</option>
+              <option value="5m">Last 5 min</option>
+              <option value="15m">Last 15 min</option>
+              <option value="30m">Last 30 min</option>
+              <option value="1h">Last 1 hour</option>
+              <option value="2h">Last 2 hours</option>
+              <option value="24h">Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+            </select>
           }
-
-          return (
-            <MetricCard
-              title="Error Rate"
-              value={`${currentErrorRate}%`}
-              subtitle={`${errorCount} errors | ${windowSubtitle}`}
-              trend={{ value: currentErrorRate > 1 ? "+Degraded" : "Normal", isPositive: currentErrorRate <= 1 }}
-              icon={<AlertTriangle size={18} color={currentErrorRate > 1 ? "#ef4444" : "#10b981"} />}
-              rightElement={
-                <select
-                  value={errorWindow}
-                  onChange={(e) => setErrorWindow(e.target.value as any)}
-                  style={{
-                    background: "rgba(15, 23, 42, 0.9)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                    borderRadius: "0.375rem",
-                    color: "#94a3b8",
-                    fontSize: "0.75rem",
-                    padding: "0.2rem 0.4rem",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="all">All-time</option>
-                  <option value="1m">Last 1 min</option>
-                  <option value="5m">Last 5 min</option>
-                  <option value="15m">Last 15 min</option>
-                  <option value="30m">Last 30 min</option>
-                  <option value="1h">Last 1 hour</option>
-                  <option value="2h">Last 2 hours</option>
-                  <option value="24h">Last 24 hours</option>
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                </select>
-              }
-              statusColor={currentErrorRate > 1 ? "rose" : "emerald"}
-            />
-          );
-        })()}
+          statusColor={currentErrorRate > 1 ? "rose" : "emerald"}
+        />
         <MetricCard
           title="P95 Latency"
           value={`${s.summary.p95LatencyMs} ms`}

@@ -8,6 +8,7 @@ export interface ServiceHeaderProps {
   onRefresh: () => void;
   isRefreshing?: boolean;
   isMock?: boolean;
+  activeErrorRate?: number;
 }
 
 export function ServiceHeader({
@@ -15,6 +16,7 @@ export function ServiceHeader({
   onRefresh,
   isRefreshing = false,
   isMock = false,
+  activeErrorRate,
 }: ServiceHeaderProps) {
   const { themeColors } = useObservability();
   const serviceName = snapshot?.service.name || "backend-service";
@@ -25,6 +27,33 @@ export function ServiceHeader({
   const timestamp = snapshot?.service.timestamp
     ? new Date(snapshot.service.timestamp).toLocaleTimeString()
     : "--:--:--";
+
+  // Compute realistic production dynamic health status using a composite multi-signal health score algorithm
+  const healthStatus = React.useMemo(() => {
+    if (!snapshot) return { label: "HEALTHY", color: "#34d399", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)" };
+    
+    const errorRate = activeErrorRate !== undefined ? activeErrorRate : (snapshot.summary?.errorRate || 0);
+    const p95Latency = snapshot.summary?.p95LatencyMs || 0;
+    const cpu = snapshot.runtime?.cpuPercent || 0;
+    const lag = snapshot.runtime?.eventLoopLagMs || 0;
+    const heapUsed = snapshot.runtime?.heapUsedMb || 0;
+    const heapTotal = snapshot.runtime?.heapTotalMb || 1;
+    const heapUsagePct = (heapUsed / heapTotal) * 100;
+
+    // Critical conditions: Severe service degradation / outage potential
+    // Error rate >= 5% OR P95 Latency >= 2000ms OR CPU >= 90% OR Event Loop Lag >= 100ms OR Heap >= 95%
+    if (errorRate >= 5.0 || p95Latency >= 2000 || cpu >= 90 || lag >= 100 || heapUsagePct >= 95) {
+      return { label: "CRITICAL", color: "#f87171", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.35)" };
+    }
+
+    // Degraded conditions: Warning thresholds where performance is sub-optimal
+    // Error rate >= 1% OR P95 Latency >= 800ms OR CPU >= 75% OR Event Loop Lag >= 30ms OR Heap >= 85%
+    if (errorRate >= 1.0 || p95Latency >= 800 || cpu >= 75 || lag >= 30 || heapUsagePct >= 85) {
+      return { label: "DEGRADED", color: "#fbbf24", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.35)" };
+    }
+
+    return { label: "HEALTHY", color: "#34d399", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)" };
+  }, [snapshot, activeErrorRate]);
 
   return (
     <div
@@ -160,9 +189,9 @@ export function ServiceHeader({
               gap: "0.4rem",
               padding: "0.25rem 0.75rem",
               borderRadius: "9999px",
-              background: "rgba(16, 185, 129, 0.15)",
-              color: "#34d399",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
+              background: healthStatus.bg,
+              color: healthStatus.color,
+              border: `1px solid ${healthStatus.border}`,
               fontSize: "0.72rem",
               fontWeight: 800,
               letterSpacing: "0.05em",
@@ -174,11 +203,11 @@ export function ServiceHeader({
                 width: "0.45rem",
                 height: "0.45rem",
                 borderRadius: "50%",
-                backgroundColor: "#10b981",
-                boxShadow: "0 0 8px #10b981",
+                backgroundColor: healthStatus.color,
+                boxShadow: `0 0 8px ${healthStatus.color}`,
               }}
             />
-            HEALTHY
+            {healthStatus.label}
           </span>
 
           {isMock && (

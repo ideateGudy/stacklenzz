@@ -19,15 +19,35 @@ export interface ObservabilityDashboardProps {
   showSwitcher?: boolean;
 }
 
+const STORAGE_KEY = "stacklenzz_active_dashboard";
+
 function ObservabilityDashboardInner({
   config,
   defaultDashboard = "full",
   showSwitcher = true,
 }: ObservabilityDashboardProps) {
-  const [currentDashboard, setCurrentDashboard] =
-    useState<DashboardTemplateType>(defaultDashboard);
-  const { themeColors } = useObservability();
+  const [currentDashboard, setCurrentDashboard] = useState<DashboardTemplateType>(() => {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const saved = window.localStorage.getItem(STORAGE_KEY) as DashboardTemplateType | null;
+      if (saved && ["full", "api", "performance", "errors", "runtime", "minimal", "crash-logs"].includes(saved)) {
+        return saved;
+      }
+    }
+    return defaultDashboard;
+  });
 
+  const handleDashboardChange = (newDashboard: DashboardTemplateType) => {
+    setCurrentDashboard(newDashboard);
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, newDashboard);
+      } catch {
+        // Ignore quota/access errors
+      }
+    }
+  };
+
+  const { themeColors } = useObservability();
   const endpoint = config?.endpoint || "http://localhost:5000/api/observability/stats";
 
   return (
@@ -44,7 +64,7 @@ function ObservabilityDashboardInner({
         <div style={{ padding: "1.25rem 1.5rem 0 1.5rem" }}>
           <DashboardSwitcher
             currentDashboard={currentDashboard}
-            onChangeDashboard={setCurrentDashboard}
+            onChangeDashboard={handleDashboardChange}
             endpoint={endpoint}
           />
         </div>
