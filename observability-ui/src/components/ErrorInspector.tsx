@@ -360,7 +360,7 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                   onClick={() => toggleExpand(err.id)}
                   style={{
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     justifyContent: "space-between",
                     padding: "0.75rem 1rem",
                     cursor: "pointer",
@@ -368,97 +368,103 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                     gap: "0.65rem",
                     transition: "background 0.15s ease",
                     background: isExpanded ? (themeColors?.badgeBg || "rgba(30, 41, 59, 0.7)") : "transparent",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", minWidth: 0, flex: 1 }}>
-                    <div style={{ flexShrink: 0, color: themeColors?.textMuted || "#94a3b8", display: "flex", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", minWidth: 0, flex: "1 1 260px" }}>
+                    <div style={{ flexShrink: 0, color: themeColors?.textMuted || "#94a3b8", display: "flex", alignItems: "center", marginTop: "0.15rem" }}>
                       {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                     </div>
 
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        fontFamily: "monospace",
-                        fontWeight: 700,
-                        padding: "0.15rem 0.5rem",
-                        borderRadius: "0.375rem",
-                        border: statusCode >= 500 ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(245, 158, 11, 0.3)",
-                        backgroundColor: statusCode >= 500 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)",
-                        color: statusCode >= 500 ? "#f87171" : "#fbbf24",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {statusCode}
-                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", minWidth: 0, flex: 1 }}>
+                      {/* Badges & Route header line */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            fontSize: "0.75rem",
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                            padding: "0.12rem 0.45rem",
+                            borderRadius: "0.375rem",
+                            border: statusCode >= 500 ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(245, 158, 11, 0.3)",
+                            backgroundColor: statusCode >= 500 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)",
+                            color: statusCode >= 500 ? "#f87171" : "#fbbf24",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {statusCode}
+                        </span>
 
-                    {/* Grouped Occurrences Badge */}
-                    {occurrences > 1 && (
-                      <span
-                        style={{
-                          backgroundColor: "rgba(99, 102, 241, 0.2)",
-                          color: "#a5b4fc",
-                          border: "1px solid rgba(99, 102, 241, 0.3)",
-                          fontSize: "0.68rem",
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          padding: "0.1rem 0.45rem",
-                          borderRadius: "9999px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          flexShrink: 0,
-                        }}
-                        title={`Grouped Issue: Occurred ${occurrences} times`}
-                      >
-                        <Layers size={10} />
-                        x{occurrences}
-                      </span>
-                    )}
+                        {/* Grouped Occurrences Badge */}
+                        {occurrences > 1 && (
+                          <span
+                            style={{
+                              backgroundColor: "rgba(99, 102, 241, 0.2)",
+                              color: "#a5b4fc",
+                              border: "1px solid rgba(99, 102, 241, 0.3)",
+                              fontSize: "0.68rem",
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                              padding: "0.1rem 0.45rem",
+                              borderRadius: "9999px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                              flexShrink: 0,
+                            }}
+                            title={`Grouped Issue: Occurred ${occurrences} times`}
+                          >
+                            <Layers size={10} />
+                            x{occurrences}
+                          </span>
+                        )}
 
-                    {err.method && (
-                      <span
-                        style={{
-                          color: themeColors?.textMuted || "#94a3b8",
-                          fontSize: "0.75rem",
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {err.method}
-                      </span>
-                    )}
+                        {err.method && (
+                          <span
+                            style={{
+                              color: themeColors?.accent || "#38bdf8",
+                              fontSize: "0.75rem",
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {err.method}
+                          </span>
+                        )}
 
-                    {err.route && (
-                      <span
+                        {err.route && (
+                          <span
+                            style={{
+                              color: themeColors?.text || "#cbd5e1",
+                              fontSize: "0.8rem",
+                              fontFamily: "monospace",
+                              wordBreak: "break-all",
+                              minWidth: 0,
+                            }}
+                          >
+                            {err.route}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Message body line */}
+                      <div
                         style={{
-                          color: themeColors?.text || "#cbd5e1",
+                          color: "#f87171",
                           fontSize: "0.8rem",
-                          fontFamily: "monospace",
+                          fontWeight: 500,
+                          lineHeight: 1.4,
+                          wordBreak: "break-word",
+                          display: "-webkit-box",
+                          WebkitLineClamp: isExpanded ? "none" : 2,
+                          WebkitBoxOrient: "vertical",
                           overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          maxWidth: "220px",
                         }}
                       >
-                        {err.route}
-                      </span>
-                    )}
-
-                    <span
-                      style={{
-                        color: "#f87171",
-                        fontSize: "0.8rem",
-                        fontWeight: 500,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
-                      {err.message}
-                    </span>
+                        {err.message}
+                      </div>
+                    </div>
                   </div>
 
                   <div
@@ -469,11 +475,12 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                       gap: "0.4rem",
                       fontSize: "0.75rem",
                       flexShrink: 0,
-                      marginLeft: "0.5rem",
+                      alignSelf: "flex-start",
+                      marginLeft: "auto",
                     }}
                   >
                     <Clock size={12} />
-                    <span style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{timeStr}</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "0.75rem", whiteSpace: "nowrap" }}>{timeStr}</span>
                   </div>
                 </div>
 
@@ -685,8 +692,10 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                                     borderRadius: "0.65rem",
                                     padding: "0.65rem 0.85rem",
                                     display: "flex",
-                                    alignItems: "center",
-                                    gap: "0.65rem",
+                                    alignItems: "flex-start",
+                                    justifyContent: "space-between",
+                                    gap: "0.5rem 0.75rem",
+                                    flexWrap: "wrap",
                                   }}
                                 >
                                   <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexShrink: 0 }}>
@@ -709,11 +718,10 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                                       color: themeColors?.text || "#e2e8f0",
                                       fontSize: "0.78rem",
                                       fontFamily: "monospace",
-                                      flex: 1,
+                                      flex: "1 1 200px",
                                       minWidth: 0,
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
+                                      wordBreak: "break-word",
+                                      lineHeight: 1.4,
                                     }}
                                   >
                                     {crumb.message}
@@ -729,10 +737,8 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                                         fontFamily: "monospace",
                                         padding: "0.15rem 0.5rem",
                                         borderRadius: "0.25rem",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        maxWidth: "180px",
+                                        wordBreak: "break-all",
+                                        maxWidth: "100%",
                                       }}
                                     >
                                       {JSON.stringify(crumb.data)}
@@ -747,10 +753,11 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                                       gap: "0.25rem",
                                       fontSize: "0.7rem",
                                       flexShrink: 0,
+                                      marginLeft: "auto",
                                     }}
                                   >
                                     <Clock size={11} />
-                                    <span style={{ fontFamily: "monospace" }}>{crumbTime}</span>
+                                    <span style={{ fontFamily: "monospace", whiteSpace: "nowrap" }}>{crumbTime}</span>
                                   </div>
                                 </div>
                               );
@@ -971,13 +978,15 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                   key={idx}
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: "0.65rem",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "0.5rem 0.75rem",
                     background: themeColors?.surfaceSubtle || "rgba(30, 41, 59, 0.5)",
                     border: `1px solid ${themeColors?.borderSubtle || "rgba(255, 255, 255, 0.08)"}`,
                     borderLeft: `4px solid ${borderLeftColor}`,
                     borderRadius: "0.65rem",
                     padding: "0.65rem 0.85rem",
+                    flexWrap: "wrap",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexShrink: 0 }}>
@@ -1000,11 +1009,10 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                       fontSize: "0.78rem",
                       fontFamily: "monospace",
                       color: themeColors?.text || "#e2e8f0",
-                      flex: 1,
+                      flex: "1 1 200px",
                       minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      wordBreak: "break-word",
+                      lineHeight: 1.4,
                     }}
                   >
                     {crumb.message}
@@ -1020,10 +1028,8 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
                         padding: "0.15rem 0.5rem",
                         borderRadius: "0.25rem",
                         border: `1px solid ${themeColors?.borderSubtle || "rgba(255, 255, 255, 0.05)"}`,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: "180px",
+                        wordBreak: "break-all",
+                        maxWidth: "100%",
                       }}
                     >
                       {JSON.stringify(crumb.data)}
@@ -1032,16 +1038,17 @@ export function ErrorInspector({ errors = [], globalBreadcrumbs = [], timeWindow
 
                   <div
                     style={{
+                      color: themeColors?.textMuted || "#64748b",
                       display: "flex",
                       alignItems: "center",
                       gap: "0.25rem",
-                      color: themeColors?.textMuted || "#64748b",
                       fontSize: "0.7rem",
                       flexShrink: 0,
+                      marginLeft: "auto",
                     }}
                   >
                     <Clock size={11} />
-                    <span style={{ fontFamily: "monospace" }}>{crumbTime}</span>
+                    <span style={{ fontFamily: "monospace", whiteSpace: "nowrap" }}>{crumbTime}</span>
                   </div>
                 </div>
               );

@@ -367,14 +367,15 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                   style={{
                     padding: "1rem 1.25rem",
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     justifyContent: "space-between",
-                    gap: "1rem",
+                    gap: "0.75rem",
                     cursor: "pointer",
                     background: isExpanded ? "rgba(239, 68, 68, 0.04)" : "transparent",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", minWidth: 0, flex: "1 1 280px" }}>
                     <button
                       style={{
                         background: "transparent",
@@ -384,91 +385,99 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                         padding: 0,
                         display: "flex",
                         alignItems: "center",
+                        marginTop: "0.15rem",
                       }}
                     >
                       {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                     </button>
 
-                    {/* Grouped Occurrences Badge - placed IN FRONT OF status code */}
-                    {log.occurrences && log.occurrences > 1 && (
-                      <span
-                        style={{
-                          backgroundColor: "rgba(99, 102, 241, 0.2)",
-                          color: "#a5b4fc",
-                          border: "1px solid rgba(99, 102, 241, 0.3)",
-                          fontSize: "0.68rem",
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          padding: "0.1rem 0.45rem",
-                          borderRadius: "9999px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          flexShrink: 0,
-                        }}
-                        title={`Grouped Issue: Occurred ${log.occurrences} times`}
-                      >
-                        <Layers size={10} />
-                        x{log.occurrences}
-                      </span>
-                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", minWidth: 0, flex: 1 }}>
+                      {/* Top metadata line: Occurrences, Status Code, Method, Route */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                        {/* Grouped Occurrences Badge */}
+                        {log.occurrences && log.occurrences > 1 && (
+                          <span
+                            style={{
+                              backgroundColor: "rgba(99, 102, 241, 0.2)",
+                              color: "#a5b4fc",
+                              border: "1px solid rgba(99, 102, 241, 0.3)",
+                              fontSize: "0.68rem",
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                              padding: "0.1rem 0.45rem",
+                              borderRadius: "9999px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                              flexShrink: 0,
+                            }}
+                            title={`Grouped Issue: Occurred ${log.occurrences} times`}
+                          >
+                            <Layers size={10} />
+                            x{log.occurrences}
+                          </span>
+                        )}
 
-                    {/* Status Code Pill */}
-                    <div
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        padding: "0.2rem 0.55rem",
-                        borderRadius: "0.35rem",
-                        background: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        color: "#ef4444",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {statusCode}
-                    </div>
+                        {/* Status Code Pill */}
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            padding: "0.15rem 0.5rem",
+                            borderRadius: "0.35rem",
+                            background: "rgba(239, 68, 68, 0.15)",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                            color: "#ef4444",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {statusCode}
+                        </div>
 
-                    {/* Method & Route */}
-                    {log.route && (
+                        {/* Method & Route */}
+                        {log.route && (
+                          <div
+                            style={{
+                              fontSize: "0.8125rem",
+                              fontWeight: 600,
+                              color: themeColors.text,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.35rem",
+                              wordBreak: "break-all",
+                              minWidth: 0,
+                            }}
+                          >
+                            {log.method && (
+                              <span style={{ color: themeColors.accent || "#38bdf8", fontWeight: 700, flexShrink: 0 }}>
+                                {log.method}
+                              </span>
+                            )}
+                            <span style={{ wordBreak: "break-all" }}>{log.route}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Error Message */}
                       <div
                         style={{
                           fontSize: "0.8125rem",
-                          fontWeight: 600,
-                          color: themeColors.text,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.35rem",
-                          flexShrink: 0,
+                          color: themeColors.textMuted,
+                          lineHeight: 1.4,
+                          wordBreak: "break-word",
+                          display: "-webkit-box",
+                          WebkitLineClamp: isExpanded ? "none" : 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
                         }}
                       >
-                        {log.method && (
-                          <span style={{ color: themeColors.accent || "#38bdf8", fontWeight: 700 }}>
-                            {log.method}
-                          </span>
-                        )}
-                        <span>{log.route}</span>
+                        {log.message}
                       </div>
-                    )}
-
-                    {/* Message Preview */}
-                    <div
-                      style={{
-                        fontSize: "0.8125rem",
-                        color: themeColors.textMuted,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        minWidth: 0,
-                        flex: 1,
-                      }}
-                    >
-                      {log.message}
                     </div>
                   </div>
 
                   {/* Right metadata & delete button */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexShrink: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0, alignSelf: "flex-start", marginLeft: "auto" }}>
                     <div
                       style={{
                         display: "flex",
@@ -479,7 +488,7 @@ export function CrashLogsList({ logs, onDelete, onClearAll }: CrashLogsListProps
                       }}
                     >
                       <Clock size={12} />
-                      <span>{dateStr}</span>
+                      <span style={{ whiteSpace: "nowrap" }}>{dateStr}</span>
                     </div>
 
                     {/* Individual Delete Button */}
