@@ -120,7 +120,7 @@ const MAX_ERROR_BUFFER_SIZE = 50;
 const errorRingBuffer: CapturedErrorRecord[] = [];
 
 // Global breadcrumb ring buffer (records recent app operations leading up to any failure)
-const MAX_BREADCRUMBS = 30;
+const MAX_BREADCRUMBS = 100;
 const breadcrumbRingBuffer: Breadcrumb[] = [];
 
 /**
@@ -132,8 +132,26 @@ export function addBreadcrumb(crumb: {
   level?: "info" | "warn" | "error" | "debug";
   data?: Record<string, any>;
 }): void {
+  const now = Date.now();
+  // Deduplicate rapid identical HTTP breadcrumbs (e.g. from overlapping interceptors/filters within 1s)
+  if (crumb.category === "http" && crumb.data?.url) {
+    const existingRecent = breadcrumbRingBuffer.slice(-3).find(
+      (b) =>
+        b.category === "http" &&
+        b.data?.url === crumb.data?.url &&
+        now - b.timestamp < 1000
+    );
+    if (existingRecent) {
+      if (crumb.data.durationMs && !existingRecent.data?.durationMs) {
+        existingRecent.message = crumb.message;
+        existingRecent.data = { ...existingRecent.data, ...crumb.data };
+      }
+      return;
+    }
+  }
+
   const item: Breadcrumb = {
-    timestamp: Date.now(),
+    timestamp: now,
     category: crumb.category || "custom",
     message: crumb.message,
     level: crumb.level || "info",
@@ -143,6 +161,27 @@ export function addBreadcrumb(crumb: {
   if (breadcrumbRingBuffer.length > MAX_BREADCRUMBS) {
     breadcrumbRingBuffer.shift();
   }
+}
+
+/**
+ * Returns recent breadcrumbs for an error snapshot:
+ * Counts the 10 most recent HTTP requests, while keeping any intermediate
+ * database, auth, or log breadcrumbs that occurred alongside them (so total breadcrumbs can exceed 10).
+ */
+export function getRecentBreadcrumbsForError(targetHttpCount = 10): Breadcrumb[] {
+  if (breadcrumbRingBuffer.length === 0) return [];
+  let httpCount = 0;
+  let startIndex = 0;
+  for (let i = breadcrumbRingBuffer.length - 1; i >= 0; i--) {
+    if (breadcrumbRingBuffer[i].category === "http") {
+      httpCount++;
+      if (httpCount >= targetHttpCount) {
+        startIndex = i;
+        break;
+      }
+    }
+  }
+  return breadcrumbRingBuffer.slice(startIndex);
 }
 
 /**
@@ -161,12 +200,17 @@ export function computeFingerprint(err: {
   stack?: string;
   statusCode?: number;
 }): string {
+  let cleanMsg = (err.message || "").trim();
+  // Strip generic HTTP server/client error prefix to align with specific exception message
+  cleanMsg = cleanMsg.replace(/^HTTP (Server|Client) Error \(\d+\) on \w+ [^:]+:\s*/i, "");
+
   // Normalize message: strip numbers, ids, timestamps to group same error class
-  const normalizedMsg = (err.message || "")
+  const normalizedMsg = cleanMsg
     .replace(/\b\d+\b/g, ":num")
     .replace(/[0-9a-fA-F-]{16,}/g, ":id")
+    .toLowerCase()
     .trim();
-  const route = err.route || "general";
+  const route = (err.route || "general").toLowerCase();
   const status = err.statusCode || 500;
   return `${status}-${route}-${normalizedMsg.slice(0, 80)}`;
 }
@@ -214,21 +258,26 @@ export function recordError(err: {
     if (err.breadcrumbs && err.breadcrumbs.length > 0) {
       existing.breadcrumbs = err.breadcrumbs;
     } else {
-      existing.breadcrumbs = breadcrumbRingBuffer.slice(-10);
+      existing.breadcrumbs = getRecentBreadcrumbsForError(10);
     }
     notifyCrashLogAdaptor(existing);
     return;
   }
 
-  // Snapshot recent breadcrumbs for this new error
+  // Snapshot recent breadcrumbs for this new error: count 10 recent HTTP requests + intermediate items
   const breadcrumbs = err.breadcrumbs && err.breadcrumbs.length > 0
     ? err.breadcrumbs
-    : breadcrumbRingBuffer.slice(-10);
+    : getRecentBreadcrumbsForError(10);
 
   const memMb = Math.round(process.memoryUsage().heapUsed / (1024 * 1024));
 
+  // Generate deterministic ID derived from fingerprint hash
+  const hashStr = Math.abs(
+    fingerprint.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)
+  ).toString(36);
+
   const record: CapturedErrorRecord = {
-    id: `err-${now}-${Math.random().toString(36).substring(2, 7)}`,
+    id: `crash-${hashStr}`,
     timestamp: now,
     message: err.message,
     stack: err.stack,
@@ -275,12 +324,34 @@ export function createErrorCaptureFormat() {
       const isMiddlewareSummary = Boolean(info.isMiddlewareSummary) ||
         (typeof rawMsg === "string" && (rawMsg.includes("HTTP Server Error") || rawMsg.includes("HTTP Client Error")));
 
+      // Normalize rawMsg by stripping generic HTTP error prefix
+      if (typeof rawMsg === "string") {
+        rawMsg = rawMsg.replace(/^HTTP (Server|Client) Error \(\d+\) on \w+ [^:]+:\s*/i, "").trim();
+      }
+
+      // If responseBody has detailed message or error, format message clearly
+      let errorMsg = rawMsg;
+      if (responseBody && typeof responseBody === "object") {
+        const resObj = responseBody as Record<string, any>;
+        if (resObj.message && resObj.error) {
+          errorMsg = `${resObj.error}: ${resObj.message}`;
+        } else if (resObj.message) {
+          errorMsg = typeof resObj.message === "string" ? resObj.message : JSON.stringify(resObj.message);
+        } else if (resObj.error) {
+          errorMsg = resObj.error;
+        }
+      }
+
+      if (typeof errorMsg === "string") {
+        errorMsg = errorMsg.replace(/^HTTP (Server|Client) Error \(\d+\) on \w+ [^:]+:\s*/i, "").trim();
+      }
+
       if (isMiddlewareSummary) {
-        // If an explicit error was already logged for this request/route within the last 5 seconds, attach response body if missing
+        // If an explicit error was already logged for this request/route within the last 5 seconds, attach response body if missing and skip recording a 2nd record
         const normalizedRoute = (route || "").trim().toLowerCase();
         const existingRecent = errorRingBuffer.find((e) => {
           const eRoute = (e.route || "").trim().toLowerCase();
-          const routeMatches = eRoute === normalizedRoute || normalizedRoute.includes(eRoute) || eRoute.includes(normalizedRoute);
+          const routeMatches = !normalizedRoute || !eRoute || eRoute === normalizedRoute || normalizedRoute.includes(eRoute) || eRoute.includes(normalizedRoute);
           const notGeneric = !e.message.includes("HTTP Server Error") && !e.message.includes("HTTP Client Error");
           const isFresh = Date.now() - e.timestamp < 5000;
           return routeMatches && notGeneric && isFresh;
@@ -291,19 +362,6 @@ export function createErrorCaptureFormat() {
             existingRecent.responseBody = responseBody;
           }
           return info;
-        }
-      }
-
-      // If responseBody has detailed message or error, format message clearly
-      let errorMsg = rawMsg;
-      if (responseBody && typeof responseBody === "object") {
-        const resObj = responseBody as Record<string, any>;
-        if (resObj.message && resObj.error) {
-          errorMsg = `${resObj.error}: ${resObj.message}`;
-        } else if (resObj.message) {
-          errorMsg = resObj.message;
-        } else if (resObj.error) {
-          errorMsg = resObj.error;
         }
       }
 

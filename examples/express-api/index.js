@@ -39,6 +39,8 @@ const crashLogSchema = new mongoose.Schema(
     route: { type: String },
     method: { type: String },
     statusCode: { type: Number },
+    fingerprint: { type: String },
+    occurrences: { type: Number, default: 1 },
     breadcrumbs: { type: Array, default: [] },
     context: { type: Object, default: {} },
   },

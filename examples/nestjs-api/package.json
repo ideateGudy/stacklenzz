@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "dev": "nest start --watch"
   },
   "dependencies": {
     "@nestjs/core": "^12.0.3",
@@ -19,6 +20,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.3",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }

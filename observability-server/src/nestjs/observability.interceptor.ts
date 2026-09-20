@@ -164,17 +164,7 @@ export class ObservabilityInterceptor implements NestInterceptor {
           },
         };
 
-        if (statusCodeNum >= 500) {
-          this.loggerInstance.error(
-            `HTTP Server Error (${statusCodeNum}) on ${req.method} ${req.originalUrl || req.url}`,
-            { ...logData, isMiddlewareSummary: true }
-          );
-        } else if (statusCodeNum >= 400) {
-          this.loggerInstance.error(
-            `HTTP Client Error (${statusCodeNum}) on ${req.method} ${req.originalUrl || req.url}`,
-            { ...logData, isMiddlewareSummary: true }
-          );
-        } else {
+        if (statusCodeNum < 400) {
           this.loggerInstance.info(
             `HTTP Request: ${req.method} ${req.originalUrl || req.url}`,
             logData

@@ -1,6 +1,6 @@
 import { register, getWindowMetrics } from "./metrics.js";
 import { ObservabilityConfig, getDefaultConfig } from "./config.js";
-import { getRecentErrors, getBreadcrumbs, getCrashLogAdaptor } from "./logger.js";
+import { getRecentErrors, getBreadcrumbs, getCrashLogAdaptor, computeFingerprint, getRecentBreadcrumbsForError } from "./logger.js";
 import type { CapturedErrorRecord, Breadcrumb } from "./logger.js";
 
 export type { CapturedErrorRecord, Breadcrumb };
@@ -282,12 +282,53 @@ export async function getObservabilitySnapshot(
       nodeVersion: process.version,
     },
     recentErrors: getRecentErrors(),
-    breadcrumbs: getBreadcrumbs(),
+    breadcrumbs: getRecentBreadcrumbsForError(10),
     dbCrashLogs: await (async () => {
       const adaptor = getCrashLogAdaptor();
       if (adaptor && typeof adaptor.list === "function") {
         try {
-          return await adaptor.list();
+          const rawDbList = await adaptor.list();
+          if (!Array.isArray(rawDbList)) return undefined;
+
+          const map = new Map<string, CapturedErrorRecord>();
+          for (const log of rawDbList) {
+            let cleanMsg = (log.message || "").trim();
+            cleanMsg = cleanMsg.replace(/^HTTP (Server|Client) Error \(\d+\) on \w+ [^:]+:\s*/i, "");
+            const normRoute = (log.route || "").trim().toLowerCase();
+            const key = `${log.method || "GET"}:${normRoute}:${log.statusCode || 500}`;
+
+            const computedFp = log.fingerprint || computeFingerprint({
+              message: cleanMsg || log.message || "Internal Server Error",
+              route: log.route,
+              statusCode: log.statusCode || 500,
+            });
+
+            if (map.has(key)) {
+              const existing = map.get(key)!;
+              existing.occurrences = (existing.occurrences || 1) + (log.occurrences || 1);
+              const existingTime = Number(existing.timestamp) || new Date(existing.timestamp || (existing as any).createdAt || 0).getTime();
+              const logTime = Number(log.timestamp) || new Date(log.timestamp || (log as any).createdAt || 0).getTime();
+              if (logTime > existingTime) {
+                existing.timestamp = log.timestamp || (log as any).createdAt;
+                existing.id = log.id || existing.id;
+                if (cleanMsg && !cleanMsg.toLowerCase().startsWith("http server error")) {
+                  existing.message = cleanMsg;
+                }
+                if (log.stack) existing.stack = log.stack;
+                if (log.breadcrumbs && log.breadcrumbs.length > 0) existing.breadcrumbs = log.breadcrumbs;
+                if (log.context) existing.context = log.context;
+                existing.fingerprint = computedFp;
+              }
+            } else {
+              map.set(key, {
+                ...log,
+                message: cleanMsg || log.message,
+                occurrences: log.occurrences || 1,
+                fingerprint: computedFp,
+              });
+            }
+          }
+          return Array.from(map.values());
         } catch {
           return undefined;
         }

@@ -108,6 +108,14 @@ export function createObservabilityMiddleware(
         },
       });
 
+      const safeHeaders: Record<string, string> = {};
+      for (const [k, v] of Object.entries(req.headers || {})) {
+        if (typeof v === "string") safeHeaders[k] = v;
+        else if (Array.isArray(v)) safeHeaders[k] = v.join(", ");
+      }
+      if (!safeHeaders["host"] && req.get) safeHeaders["host"] = req.get("host") || "";
+      if (!safeHeaders["user-agent"] && req.get) safeHeaders["user-agent"] = req.get("user-agent") || "";
+
       const logData = {
         method: req.method,
         url: req.originalUrl || req.url,
@@ -116,11 +124,7 @@ export function createObservabilityMiddleware(
         duration_ms: durationMs,
         responseBody: capturedResponseBody,
         context: {
-          headers: {
-            "user-agent": req.headers["user-agent"] as string,
-            "host": req.headers["host"] as string,
-            "content-type": req.headers["content-type"] as string,
-          },
+          headers: safeHeaders,
           query: req.query,
           ip: req.ip || req.socket?.remoteAddress,
         },

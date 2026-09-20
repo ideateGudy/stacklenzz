@@ -62,16 +62,18 @@ export class ObservabilityExceptionFilter implements ExceptionFilter {
         ? (errorResponse as any).message || JSON.stringify(errorResponse)
         : String(errorResponse);
 
-    // Record breadcrumb
-    addBreadcrumb({
-      category: "http",
-      message: `${request.method} ${request.originalUrl || request.url} -> ${status}`,
-      level: status >= 500 ? "error" : "warn",
-      data: {
-        url: request.originalUrl || request.url,
-        statusCode: status,
-      },
-    });
+    const rawHeaders = request.headers || request.raw?.headers || {};
+    const safeHeaders: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rawHeaders)) {
+      if (typeof v === "string") safeHeaders[k] = v;
+      else if (Array.isArray(v)) safeHeaders[k] = v.join(", ");
+    }
+    if (!safeHeaders["host"] && request.get) {
+      safeHeaders["host"] = request.get("host") || "";
+    }
+    if (!safeHeaders["user-agent"] && request.get) {
+      safeHeaders["user-agent"] = request.get("user-agent") || "";
+    }
 
     // Record error in logger
     const logData = {
@@ -81,33 +83,23 @@ export class ObservabilityExceptionFilter implements ExceptionFilter {
       status,
       responseBody: errorResponse,
       context: {
-        headers: {
-          "user-agent": request.headers?.["user-agent"],
-          host: request.headers?.["host"],
-          "content-type": request.headers?.["content-type"],
-        },
+        headers: safeHeaders,
         query: request.query,
         ip: request.ip || request.socket?.remoteAddress,
       },
     };
 
     if (status >= 500) {
-      this.loggerInstance.error(
-        `HTTP Server Error (${status}) on ${request.method} ${request.originalUrl || request.url}: ${message}`,
-        {
-          ...logData,
-          stack: exception instanceof Error ? exception.stack : undefined,
-          isMiddlewareSummary: true,
-        }
-      );
+      this.loggerInstance.error(message || "Internal Server Error", {
+        ...logData,
+        stack: exception instanceof Error ? exception.stack : undefined,
+        isMiddlewareSummary: true,
+      });
     } else {
-      this.loggerInstance.error(
-        `HTTP Client Error (${status}) on ${request.method} ${request.originalUrl || request.url}: ${message}`,
-        {
-          ...logData,
-          isMiddlewareSummary: true,
-        }
-      );
+      this.loggerInstance.error(message || "Client Error", {
+        ...logData,
+        isMiddlewareSummary: true,
+      });
     }
 
     // Send the response to client
