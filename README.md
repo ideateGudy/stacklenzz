@@ -346,7 +346,18 @@ Output:
 7. **Node Runtime** (`<NodeRuntimeDashboard />`): Process CPU load, RSS/Heap memory usage, and V8 event loop lag.
 8. **Minimal Widget** (`<MinimalDashboard />`): Compact card designed to be embedded in an existing admin layout.
 
-### 6 Built-In Runtime Themes
+### 6 Built-In Runtime Themes & Dynamic Health Evaluation Logic
+
+#### Composite Dynamic Health Evaluation
+The dashboard service header computes a real-time, composite health status (`HEALTHY` / `DEGRADED` / `CRITICAL`) using multi-signal SLA thresholds based on active metrics and the currently selected Error Rate time window (`1m`, `5m`, `15m`, `1h`, `All-time`):
+
+- **`CRITICAL` (Red)**: Triggered when Error Rate $\ge 5.0\%$, P95 Latency $\ge 2,000\text{ ms}$, CPU $\ge 90\%$, Event Loop Lag $\ge 100\text{ ms}$, or Heap Memory $\ge 95\%$.
+- **`DEGRADED` (Yellow)**: Triggered when Error Rate $\ge 1.0\%$, P95 Latency $\ge 800\text{ ms}$, CPU $\ge 75\%$, Event Loop Lag $\ge 30\text{ ms}$, or Heap Memory $\ge 85\%$.
+- **`HEALTHY` (Green)**: Nominal performance across all active system metrics.
+
+> **Database Crash Isolation**: Persisted MongoDB / SQL database crash records (`dbCrashLogs`) are kept separate from active health evaluation so historical crash logs from prior server instances do not skew live runtime status.
+
+#### 6 Built-In Runtime Themes
 All dashboard components adapt automatically to the active theme with zero CSS configuration required:
 - **Tokyo Night** (`tokyo-night`) - Deep indigo with neon accents *(Default)*
 - **Nord** (`nord`) - Arctic cool frost blues

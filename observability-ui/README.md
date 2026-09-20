@@ -37,6 +37,10 @@ Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphis
   - Detailed modal inspector with stack traces, context tags (OS, Node version, memory, IP, user-agent), and request payload responses.
   - Dynamic occurrence recalculation based on sliding time windows (`x4` ➔ `x2`).
   - Breadcrumbs timeline with newest-first / oldest-first sorting toggles.
+- **Dynamic Composite Health Evaluation**:
+  - Service header dynamically evaluates `HEALTHY` / `DEGRADED` / `CRITICAL` state based on active runtime metrics and the user's selected Error Rate time window (`1m`, `5m`, `15m`, `1h`, `All-time`).
+  - Industry SLA thresholds: `CRITICAL` at $\ge 5\%$ Error Rate, $\ge 2000\text{ms}$ P95 Latency, $\ge 90\%$ CPU, $\ge 100\text{ms}$ Event Loop Lag, or $\ge 95\%$ Heap; `DEGRADED` at $\ge 1\%$ Error Rate, $\ge 800\text{ms}$ P95 Latency, $\ge 75\%$ CPU, $\ge 30\text{ms}$ Event Loop Lag, or $\ge 85\%$ Heap.
+  - Excludes legacy database crash logs (`dbCrashLogs`) from health calculations so old instances do not falsely trigger active degradation.
 - **Customizable Rolling Windows**: Interactive selector for error rates and counts across `1m`, `5m`, `15m`, `30m`, `1h`, `2h`, `24h`, `7d`, and `30d`.
 
 ---
