@@ -15,7 +15,7 @@
     "url": "https://github.com/ideateGudy/stacklenzz/issues"
   },
   "homepage": "https://github.com/ideateGudy/stacklenzz/tree/main/observability-cli#readme",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "stacklenzz",
     "observability",
