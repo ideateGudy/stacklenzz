@@ -12,14 +12,14 @@
   <a href="https://stacklenzz.vercel.app/"><b>📖 Full Documentation & Interactive Portal: https://stacklenzz.vercel.app/</b></a>
 </p>
 
-Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphism, curated dark mode aesthetics, dynamic Redux Toolkit state management, and micro-interactions.
+Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphism, curated dark mode aesthetics, native React Context state management, and micro-interactions.
 
 ---
 
 ## Features
 
-- **Redux Toolkit State Architecture**:
-  - Powered by `@reduxjs/toolkit` (`createSlice`, `configureStore`) and `react-redux` (`Provider`, `useSelector`, `useDispatch`).
+- **Native React Context Architecture**:
+  - Powered by React Context (`useState`, `useEffect`, `useCallback`, `useMemo`) — zero third-party state manager required (`@reduxjs/toolkit` / `react-redux`).
   - Automatic `localStorage` persistence under key `stacklenzz_theme` — theme selection persists seamlessly across reloads and navigation.
   - Dynamic full-page theme color propagation affecting card backgrounds, text typography, borders, badges, and charts.
 - **7 Pre-Composed Dashboard Templates**:
@@ -48,9 +48,9 @@ Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphis
 ## Installation
 
 ```bash
-npm install @stacklenzz/ui lucide-react @reduxjs/toolkit react-redux
+npm install @stacklenzz/ui lucide-react
 # or
-pnpm add @stacklenzz/ui lucide-react @reduxjs/toolkit react-redux
+pnpm add @stacklenzz/ui lucide-react
 ```
 
 ### Peer Dependencies:
@@ -103,9 +103,9 @@ import {
 <ErrorMonitoringDashboard config={{ endpoint: "http://localhost:5000/api/observability/stats" }} />
 ```
 
-### 3. Custom Composability with Low-Level Components & Redux Store
+### 3. Custom Composability with Low-Level Components & React Context
 
-You can build your own custom dashboard layout using atomic components and access the underlying Redux Toolkit state via `useObservability()`:
+You can build your own custom dashboard layout using atomic components and access the underlying theme & snapshot state via `useObservability()`:
 
 ```tsx
 import {
@@ -172,4 +172,4 @@ To report bugs or contribute code:
 ---
 
 ## License
-MIT © Goodnews Azonubi
+Apache License 2.0 © Goodnews Azonubi

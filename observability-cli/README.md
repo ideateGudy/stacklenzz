@@ -145,4 +145,4 @@ To report bugs or contribute code:
 ---
 
 ## License
-MIT © Goodnews Azonubi
+Apache License 2.0 © Goodnews Azonubi
