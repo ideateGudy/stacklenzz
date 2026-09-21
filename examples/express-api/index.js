@@ -1,13 +1,14 @@
 import express from "express";
 import dotenv from "dotenv";
 import { setupObservability, logger, addBreadcrumb } from "@stacklenzz/server";
-import mongoose from "mongoose";
+import pg from "pg";
 
 dotenv.config();
 
+const { Pool } = pg;
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI;
+const DATABASE_URL = process.env.DATABASE_URL;
 
 const products = [
   {
@@ -22,65 +23,115 @@ const products = [
     name: "Managed Database",
     price: 99,
     category: "Infrastructure",
-    description: "High-performance cloud server for demanding applications.",
+    description: "Managed PostgreSQL database instance with auto-scaling.",
   },
 ];
 
-// Define Mongoose Schema for Crash Logs
-const crashLogSchema = new mongoose.Schema(
-  {
-    id: { type: String, required: true, unique: true },
-    timestamp: { type: String, required: true },
-    serviceName: { type: String, required: true },
-    environment: { type: String, required: true },
-    errorName: { type: String, required: true },
-    message: { type: String, required: true },
-    stack: { type: String },
-    route: { type: String },
-    method: { type: String },
-    statusCode: { type: Number },
-    fingerprint: { type: String },
-    occurrences: { type: Number, default: 1 },
-    breadcrumbs: { type: Array, default: [] },
-    context: { type: Object, default: {} },
-  },
-  { timestamps: true }
-);
+// Initialize PostgreSQL Connection Pool (supports Neon PostgreSQL)
+let pool = null;
 
-const CrashLogModel = mongoose.models.CrashLog || mongoose.model("CrashLog", crashLogSchema);
+if (DATABASE_URL && !DATABASE_URL.includes("your_password")) {
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: DATABASE_URL.includes("neon.tech") || DATABASE_URL.includes("sslmode=require")
+      ? { rejectUnauthorized: false }
+      : false,
+  });
 
-// Connect to MongoDB
-if (MONGODB_URI) {
-  mongoose
-    .connect(MONGODB_URI)
-    .then(() => console.log("🌱 [Express API] Connected to MongoDB for persistent 5xx crash logging"))
-    .catch((err) => console.error("⚠️ [Express API] MongoDB Connection Error:", err.message));
+  // Verify connection and create crash_logs table automatically
+  pool
+    .query(
+      `CREATE TABLE IF NOT EXISTS crash_logs (
+        id VARCHAR(255) PRIMARY KEY,
+        timestamp VARCHAR(255) NOT NULL,
+        service_name VARCHAR(255) NOT NULL,
+        environment VARCHAR(255) NOT NULL,
+        error_name VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        stack TEXT,
+        route VARCHAR(255),
+        method VARCHAR(255),
+        status_code INT,
+        fingerprint VARCHAR(255),
+        occurrences INT DEFAULT 1,
+        breadcrumbs JSONB DEFAULT '[]'::jsonb,
+        context JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );`
+    )
+    .then(() => console.log("🌱 [Express API] Connected to PostgreSQL (Neon) for persistent 5xx crash logging"))
+    .catch((err) => console.error("⚠️ [Express API] PostgreSQL Connection Error:", err.message));
 } else {
-  console.warn("⚠️ [Express API] MONGODB_URI is missing in process.env! Check your .env file.");
+  console.warn("⚠️ [Express API] DATABASE_URL is missing or unconfigured in process.env! Update your .env file with your Neon PostgreSQL URL.");
 }
 
 // One-liner attaches:
 // 1. Request latency & throughput monitoring
 // 2. Prometheus metrics at /metrics
 // 3. Telemetry JSON snapshot at /api/observability/stats for the UI dashboard
-// 4. Pluggable MongoDB crash log adaptor for persistent 5xx failures
+// 4. Pluggable PostgreSQL (Neon) crash log adaptor for persistent 5xx failures
 setupObservability(app, {
   serviceName: "bookme-express-api",
   environment: "development",
   autoInitTracing: false,
   crashLogAdaptor: {
     async save(errorLog) {
-      console.log("💾 [MongoDB Adaptor] Persisting 5xx crash log:", errorLog.id);
-      await CrashLogModel.updateOne({ id: errorLog.id }, errorLog, { upsert: true });
+      if (!pool) return;
+      console.log("💾 [PostgreSQL Adaptor] Persisting 5xx crash log:", errorLog.id);
+      await pool.query(
+        `INSERT INTO crash_logs (id, timestamp, service_name, environment, error_name, message, stack, route, method, status_code, fingerprint, occurrences, breadcrumbs, context)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (id) DO UPDATE SET
+           occurrences = EXCLUDED.occurrences,
+           timestamp = EXCLUDED.timestamp,
+           breadcrumbs = EXCLUDED.breadcrumbs,
+           context = EXCLUDED.context;`,
+        [
+          errorLog.id,
+          errorLog.timestamp,
+          errorLog.serviceName,
+          errorLog.environment,
+          errorLog.errorName,
+          errorLog.message,
+          errorLog.stack,
+          errorLog.route,
+          errorLog.method,
+          errorLog.statusCode,
+          errorLog.fingerprint,
+          errorLog.occurrences || 1,
+          JSON.stringify(errorLog.breadcrumbs || []),
+          JSON.stringify(errorLog.context || {}),
+        ]
+      );
     },
     async list() {
-      return await CrashLogModel.find().sort({ createdAt: -1 }).lean();
+      if (!pool) return [];
+      const { rows } = await pool.query(`SELECT * FROM crash_logs ORDER BY created_at DESC`);
+      return rows.map((r) => ({
+        id: r.id,
+        timestamp: r.timestamp,
+        serviceName: r.service_name,
+        environment: r.environment,
+        errorName: r.error_name,
+        message: r.message,
+        stack: r.stack,
+        route: r.route,
+        method: r.method,
+        statusCode: r.status_code,
+        fingerprint: r.fingerprint,
+        occurrences: r.occurrences,
+        breadcrumbs: typeof r.breadcrumbs === "string" ? JSON.parse(r.breadcrumbs) : (r.breadcrumbs || []),
+        context: typeof r.context === "string" ? JSON.parse(r.context) : (r.context || {}),
+        createdAt: r.created_at,
+      }));
     },
     async delete(id) {
-      await CrashLogModel.deleteOne({ id });
+      if (!pool) return;
+      await pool.query(`DELETE FROM crash_logs WHERE id = $1`, [id]);
     },
     async clearAll() {
-      await CrashLogModel.deleteMany({});
+      if (!pool) return;
+      await pool.query(`DELETE FROM crash_logs`);
     },
   },
 });
