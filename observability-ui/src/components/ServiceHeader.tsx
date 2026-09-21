@@ -38,7 +38,9 @@ export function ServiceHeader({
     const lag = snapshot.runtime?.eventLoopLagMs || 0;
     const heapUsed = snapshot.runtime?.heapUsedMb || 0;
     const heapTotal = snapshot.runtime?.heapTotalMb || 1;
-    const heapUsagePct = (heapUsed / heapTotal) * 100;
+    // Node.js V8 initial heap allocation is small (~30MB) and its heapUsed/heapTotal ratio is naturally 80-90% at startup.
+    // Only evaluate heap percentage alerts if heapUsed is > 128MB.
+    const heapUsagePct = heapUsed > 128 ? (heapUsed / heapTotal) * 100 : 0;
 
     // Critical conditions: Severe service degradation / outage potential
     // Error rate >= 5% OR P95 Latency >= 2000ms OR CPU >= 90% OR Event Loop Lag >= 100ms OR Heap >= 95%
