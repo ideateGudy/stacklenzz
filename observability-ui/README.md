@@ -39,7 +39,8 @@ Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphis
   - Breadcrumbs timeline with newest-first / oldest-first sorting toggles.
 - **Dynamic Composite Health Evaluation**:
   - Service header dynamically evaluates `HEALTHY` / `DEGRADED` / `CRITICAL` state based on active runtime metrics and the user's selected Error Rate time window (`1m`, `5m`, `15m`, `1h`, `All-time`).
-  - Industry SLA thresholds: `CRITICAL` at $\ge 5\%$ Error Rate, $\ge 2000\text{ms}$ P95 Latency, $\ge 90\%$ CPU, $\ge 100\text{ms}$ Event Loop Lag, or $\ge 95\%$ Heap; `DEGRADED` at $\ge 1\%$ Error Rate, $\ge 800\text{ms}$ P95 Latency, $\ge 75\%$ CPU, $\ge 30\text{ms}$ Event Loop Lag, or $\ge 85\%$ Heap.
+  - Industry SLA thresholds: `CRITICAL` at $\ge 5\%$ Error Rate (5xx server errors), $\ge 2000\text{ms}$ P95 Latency, $\ge 90\%$ CPU, $\ge 100\text{ms}$ Event Loop Lag, or $\ge 95\%$ Heap (when Heap $> 128\text{MB}$); `DEGRADED` at $\ge 1\%$ Error Rate, $\ge 800\text{ms}$ P95 Latency, $\ge 75\%$ CPU, $\ge 30\text{ms}$ Event Loop Lag, or $\ge 85\%$ Heap (when Heap $> 128\text{MB}$).
+  - 5xx Server Error Rate formula: $\text{Error Rate} = \left(\frac{\text{HTTP 500+ Responses}}{\text{Total Responses}}\right) \times 100$.
   - Excludes legacy database crash logs (`dbCrashLogs`) from health calculations so old instances do not falsely trigger active degradation.
 - **Customizable Rolling Windows**: Interactive selector for error rates and counts across `1m`, `5m`, `15m`, `30m`, `1h`, `2h`, `24h`, `7d`, and `30d`.
 

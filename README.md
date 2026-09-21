@@ -351,11 +351,15 @@ Output:
 #### Composite Dynamic Health Evaluation
 The dashboard service header computes a real-time, composite health status (`HEALTHY` / `DEGRADED` / `CRITICAL`) using multi-signal SLA thresholds based on active metrics and the currently selected Error Rate time window (`1m`, `5m`, `15m`, `1h`, `All-time`):
 
-- **`CRITICAL` (Red)**: Triggered when Error Rate $\ge 5.0\%$, P95 Latency $\ge 2,000\text{ ms}$, CPU $\ge 90\%$, Event Loop Lag $\ge 100\text{ ms}$, or Heap Memory $\ge 95\%$.
-- **`DEGRADED` (Yellow)**: Triggered when Error Rate $\ge 1.0\%$, P95 Latency $\ge 800\text{ ms}$, CPU $\ge 75\%$, Event Loop Lag $\ge 30\text{ ms}$, or Heap Memory $\ge 85\%$.
+- **`CRITICAL` (Red)**: Triggered when Error Rate $\ge 5.0\%$, P95 Latency $\ge 2,000\text{ ms}$, CPU $\ge 90\%$, Event Loop Lag $\ge 100\text{ ms}$, or Heap Memory $\ge 95\%$ (when Heap Used $> 128\text{ MB}$).
+- **`DEGRADED` (Yellow)**: Triggered when Error Rate $\ge 1.0\%$, P95 Latency $\ge 800\text{ ms}$, CPU $\ge 75\%$, Event Loop Lag $\ge 30\text{ ms}$, or Heap Memory $\ge 85\%$ (when Heap Used $> 128\text{ MB}$).
 - **`HEALTHY` (Green)**: Nominal performance across all active system metrics.
 
-> **Database Crash Isolation**: Persisted MongoDB / SQL database crash records (`dbCrashLogs`) are kept separate from active health evaluation so historical crash logs from prior server instances do not skew live runtime status.
+> **5xx Server Error Rate Formula**:
+> $$\text{Error Rate} = \left(\frac{\text{Total HTTP 500+ Responses}}{\text{Total HTTP Responses (200s + 300s + 400s + 500s)}}\right) \times 100$$
+> 4xx client errors (e.g. 404 Not Found, 401 Unauthorized) are tracked separately in HTTP breakdown metrics so user client errors do not falsely degrade server health SLA scores.
+
+> **Database Crash Isolation**: Persisted PostgreSQL / MongoDB database crash records (`dbCrashLogs`) are kept separate from active health evaluation so historical crash logs from prior server instances do not skew live runtime status.
 
 #### 6 Built-In Runtime Themes
 All dashboard components adapt automatically to the active theme with zero CSS configuration required:
