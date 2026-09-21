@@ -4,15 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "build": "tsc",
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts"
   },
   "dependencies": {
     "@stacklenzz/server": "*",
     "dotenv": "^18.0.1",
     "express": "^5.2.1",
-    "pg": "^8.23.0"
+    "pg": "^8.13.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.0",
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.3",
     "typescript": "^7.0.2"
   }
 }

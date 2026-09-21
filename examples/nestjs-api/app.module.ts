@@ -8,7 +8,7 @@ import {
   Param,
   NotFoundException,
 } from "@nestjs/common";
-import { ObservabilityModule } from "@stacklenzz/server/nestjs";
+import { ObservabilityModule, CapturedErrorRecord } from "@stacklenzz/server/nestjs";
 
 @Controller("api")
 export class AppController {
@@ -95,17 +95,17 @@ if (MONGODB_URI) {
       serviceName: "bookme-nestjs-api",
       autoInitTracing: false,
       crashLogAdaptor: {
-        async save(errorLog) {
+        async save(errorLog: CapturedErrorRecord): Promise<void> {
           console.log("💾 [NestJS MongoDB Adaptor] Persisting 5xx crash log:", errorLog.id);
           await CrashLogModel.updateOne({ id: errorLog.id }, errorLog, { upsert: true });
         },
-        async list() {
+        async list(): Promise<any[]> {
           return await CrashLogModel.find().sort({ createdAt: -1 }).lean();
         },
-        async delete(id) {
+        async delete(id: string): Promise<void> {
           await CrashLogModel.deleteOne({ id });
         },
-        async clearAll() {
+        async clearAll(): Promise<void> {
           await CrashLogModel.deleteMany({});
         },
       },

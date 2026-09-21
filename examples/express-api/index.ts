@@ -1,6 +1,6 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import dotenv from "dotenv";
-import { setupObservability, logger, addBreadcrumb } from "@stacklenzz/server";
+import { setupObservability, logger, addBreadcrumb, CapturedErrorRecord } from "@stacklenzz/server";
 import pg from "pg";
 
 dotenv.config();
@@ -10,7 +10,15 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const DATABASE_URL = process.env.DATABASE_URL;
 
-const products = [
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  category: string;
+  description: string;
+}
+
+const products: Product[] = [
   {
     id: 1,
     name: "Cloud Server Pro",
@@ -28,7 +36,7 @@ const products = [
 ];
 
 // Initialize PostgreSQL Connection Pool (supports Neon PostgreSQL)
-let pool = null;
+let pool: pg.Pool | null = null;
 
 if (DATABASE_URL && !DATABASE_URL.includes("your_password")) {
   pool = new Pool({
@@ -60,7 +68,7 @@ if (DATABASE_URL && !DATABASE_URL.includes("your_password")) {
       );`
     )
     .then(() => console.log("🌱 [Express API] Connected to PostgreSQL (Neon) for persistent 5xx crash logging"))
-    .catch((err) => console.error("⚠️ [Express API] PostgreSQL Connection Error:", err.message));
+    .catch((err: Error) => console.error("⚠️ [Express API] PostgreSQL Connection Error:", err.message));
 } else {
   console.warn("⚠️ [Express API] DATABASE_URL is missing or unconfigured in process.env! Update your .env file with your Neon PostgreSQL URL.");
 }
@@ -75,7 +83,7 @@ setupObservability(app, {
   environment: "development",
   autoInitTracing: false,
   crashLogAdaptor: {
-    async save(errorLog) {
+    async save(errorLog: CapturedErrorRecord): Promise<void> {
       if (!pool) return;
       console.log("💾 [PostgreSQL Adaptor] Persisting 5xx crash log:", errorLog.id);
       await pool.query(
@@ -88,26 +96,26 @@ setupObservability(app, {
            context = EXCLUDED.context;`,
         [
           errorLog.id,
-          errorLog.timestamp,
-          errorLog.serviceName,
-          errorLog.environment,
-          errorLog.errorName,
+          String(errorLog.timestamp || Date.now()),
+          errorLog.service || "bookme-express-api",
+          "development",
+          errorLog.message ? errorLog.message.split(":")[0] : "Error",
           errorLog.message,
-          errorLog.stack,
-          errorLog.route,
-          errorLog.method,
-          errorLog.statusCode,
-          errorLog.fingerprint,
+          errorLog.stack || "",
+          errorLog.route || "",
+          errorLog.method || "",
+          errorLog.statusCode || 500,
+          errorLog.fingerprint || "",
           errorLog.occurrences || 1,
           JSON.stringify(errorLog.breadcrumbs || []),
           JSON.stringify(errorLog.context || {}),
         ]
       );
     },
-    async list() {
+    async list(): Promise<any[]> {
       if (!pool) return [];
       const { rows } = await pool.query(`SELECT * FROM crash_logs ORDER BY created_at DESC`);
-      return rows.map((r) => ({
+      return rows.map((r: any) => ({
         id: r.id,
         timestamp: r.timestamp,
         serviceName: r.service_name,
@@ -125,11 +133,11 @@ setupObservability(app, {
         createdAt: r.created_at,
       }));
     },
-    async delete(id) {
+    async delete(id: string): Promise<void> {
       if (!pool) return;
       await pool.query(`DELETE FROM crash_logs WHERE id = $1`, [id]);
     },
-    async clearAll() {
+    async clearAll(): Promise<void> {
       if (!pool) return;
       await pool.query(`DELETE FROM crash_logs`);
     },
@@ -139,7 +147,7 @@ setupObservability(app, {
 app.use(express.json());
 
 // Sample business routes
-app.get("/api/users", (_req, res) => {
+app.get("/api/users", (_req: Request, res: Response) => {
   logger.info("Users fetched successfully");
   res.json([
     { id: 1, name: "Alice Developer", role: "admin" },
@@ -147,17 +155,17 @@ app.get("/api/users", (_req, res) => {
   ]);
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", (req: Request, res: Response) => {
   const { username } = req.body || {};
   logger.info("User login attempt", { username });
   res.json({ success: true, token: "demo-jwt-token" });
 });
 
-app.get("/api/products", (_req, res) => {
+app.get("/api/products", (_req: Request, res: Response) => {
   res.json(products);
 });
 
-app.get("/api/products/:id", (req, res) => {
+app.get("/api/products/:id", (req: Request, res: Response) => {
   const { id } = req.params;
   const product = products.find((p) => p.id === Number(id));
   if (!product) {
@@ -169,12 +177,10 @@ app.get("/api/products/:id", (req, res) => {
     });
     return res.status(404).json({ message: "Product not found" });
   }
-  res.json({
-    ...product,
-  });
+  res.json(product);
 });
 
-app.post("/api/orders", (req, res) => {
+app.post("/api/orders", (_req: Request, res: Response) => {
   const isError = Math.random() < 0.2;
   if (isError) {
     logger.error("Payment processing error occurred", {
@@ -190,14 +196,14 @@ app.post("/api/orders", (req, res) => {
 // Dedicated endpoints to trigger and test Recent Exceptions & Failures:
 
 // 1. Trigger simulated database failure with stack trace
-app.get("/api/simulate-error", (_req, res) => {
+app.get("/api/simulate-error", (_req: Request, res: Response) => {
   addBreadcrumb({ category: "auth", message: "User session authenticated: uid_4812", level: "info" });
   addBreadcrumb({ category: "db", message: "Attempting query: SELECT * FROM `users` WHERE active = true", level: "info" });
   addBreadcrumb({ category: "db", message: "Database connection pool timeout warning (limit: 10 connections)", level: "warn" });
 
   try {
     throw new Error("DatabaseConnectionTimeout: Connection pool exhausted after 3000ms while querying `users` table");
-  } catch (err) {
+  } catch (err: any) {
     logger.error(err.message, {
       stack: err.stack,
       route: "/api/simulate-error",
@@ -213,7 +219,7 @@ app.get("/api/simulate-error", (_req, res) => {
 });
 
 // 2. Trigger simulated payment gateway 502 Bad Gateway
-app.post("/api/simulate-crash", (req, res) => {
+app.post("/api/simulate-crash", (req: Request, res: Response) => {
   addBreadcrumb({ category: "auth", message: "User checkout initiated (cart_id: crt_8820)", level: "info" });
   addBreadcrumb({ category: "http", message: "Outbound POST https://api.stripe.com/v1/payment_intents", level: "info" });
   addBreadcrumb({ category: "log", message: "Stripe connection socket reset by peer (ECONNRESET)", level: "error" });
@@ -232,7 +238,7 @@ app.post("/api/simulate-crash", (req, res) => {
 });
 
 // Fallback for non-existent routes (404 Not Found)
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({
     statusCode: 404,
     error: "Not Found",
