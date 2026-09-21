@@ -58,7 +58,7 @@ export function getWindowMetrics(windowMs: number): {
     if (ev.timestamp < cutoff) break;
     total++;
     durationSum += ev.durationMs;
-    if (ev.statusCode >= 400) {
+    if (ev.statusCode >= 500) {
       errors++;
     }
   }

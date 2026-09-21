@@ -150,7 +150,7 @@ export async function getObservabilitySnapshot(
 
         totalRequests += count;
 
-        if (statusCode >= 400) {
+        if (statusCode >= 500) {
           errorRequests += count;
         }
 
