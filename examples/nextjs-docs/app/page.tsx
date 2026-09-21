@@ -1017,7 +1017,7 @@ export default function AdminObservabilityPage() {
             </motion.div>
           </div>
           <div style={{ marginTop: "3rem", fontSize: "0.78rem", color: "#64748b" }}>
-            Stacklenzz • MIT Licensed • Built with Node.js & React
+            Stacklenzz • Apache 2.0 Licensed • Built with Node.js & React
           </div>
         </motion.div>
       </section>
