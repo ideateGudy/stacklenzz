@@ -62,7 +62,7 @@ export function setupObservability(
     extraIgnored.push(crashLogsPath);
   }
   const mergedIgnored = Array.from(
-    new Set([...(options.ignoredPaths || ["/metrics", "/healthz", "/health", "/api/observability/stats"]), ...extraIgnored])
+    new Set([...(options.ignoredPaths || ["/metrics", "/api/observability/stats", "/favicon.ico"]), ...extraIgnored])
   );
 
   // Attach middleware with statsPath ignored
@@ -73,11 +73,23 @@ export function setupObservability(
 
   // Attach /api/observability/stats endpoint (JSON format for frontend dashboard)
   if (statsPath) {
+    app.options(statsPath, (req, res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.status(204).end();
+    });
     app.get(statsPath, createStatsHandler({ customLogger: options.customLogger, configOverrides: options }));
   }
 
   // Attach /api/observability/crash-logs endpoints
   if (crashLogsPath) {
+    app.options([crashLogsPath, `${crashLogsPath}/:id`], (req, res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.status(204).end();
+    });
     app.get(crashLogsPath, createCrashLogsHandler({ customLogger: options.customLogger, configOverrides: options }));
     app.delete(`${crashLogsPath}/:id`, createCrashLogDeleteHandler({ customLogger: options.customLogger, configOverrides: options }));
     app.delete(crashLogsPath, createCrashLogsClearHandler({ customLogger: options.customLogger, configOverrides: options }));
