@@ -37,8 +37,8 @@ export class ObservabilityInterceptor implements NestInterceptor {
     this.ignoredPaths = new Set(
       config.ignoredPaths?.map((p) => p.replace(/^\//, "")) || [
         "metrics",
-        "healthz",
-        "health",
+        "/api/observability/stats", 
+        "/favicon.ico"
       ]
     );
   }
