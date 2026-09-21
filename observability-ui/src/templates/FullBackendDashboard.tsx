@@ -133,6 +133,10 @@ function DashboardContent() {
         background: "transparent",
         color: themeColors ? themeColors.text : "#f8fafc",
         fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+        margin: "0 auto",
+        width: "100%",
+        maxWidth: "1536px",
+        boxSizing: "border-box",
       }}
     >
       <ServiceHeader

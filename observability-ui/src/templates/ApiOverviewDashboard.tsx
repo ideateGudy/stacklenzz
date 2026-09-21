@@ -17,7 +17,18 @@ function ApiOverviewContent() {
   const s = snapshot;
 
   return (
-    <div style={{ padding: "0 1.5rem 2rem 1.5rem", background: "transparent", color: themeColors ? themeColors.text : "#f8fafc", fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
+    <div
+      style={{
+        padding: "0 1.5rem 2rem 1.5rem",
+        background: "transparent",
+        color: themeColors ? themeColors.text : "#f8fafc",
+        fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+        margin: "0 auto",
+        width: "100%",
+        maxWidth: "1536px",
+        boxSizing: "border-box",
+      }}
+    >
       <ServiceHeader snapshot={s} onRefresh={refresh} isRefreshing={isLoading} isMock={isMock} />
       <MetricGrid>
         <MetricCard title="Total HTTP Requests" value={s.summary.totalRequests.toLocaleString()} subtitle="All tracked routes" icon={<Globe size={18} color="#38bdf8" />} statusColor="blue" />

@@ -60,35 +60,37 @@ function ObservabilityDashboardInner({
         transition: "background-color 0.25s ease, color 0.25s ease",
       }}
     >
-      {showSwitcher && (
-        <div style={{ padding: "1.25rem 1.5rem 0 1.5rem" }}>
-          <DashboardSwitcher
-            currentDashboard={currentDashboard}
-            onChangeDashboard={handleDashboardChange}
-            endpoint={endpoint}
-          />
-        </div>
-      )}
+      <div style={{ margin: "0 auto", width: "100%", maxWidth: "1536px", boxSizing: "border-box" }}>
+        {showSwitcher && (
+          <div style={{ padding: "1.25rem 1.5rem 0 1.5rem" }}>
+            <DashboardSwitcher
+              currentDashboard={currentDashboard}
+              onChangeDashboard={handleDashboardChange}
+              endpoint={endpoint}
+            />
+          </div>
+        )}
 
-      {currentDashboard === "full" && <FullBackendDashboard config={config} />}
-      {currentDashboard === "api" && <ApiOverviewDashboard config={config} />}
-      {currentDashboard === "performance" && (
-        <BackendPerformanceDashboard config={config} />
-      )}
-      {currentDashboard === "errors" && (
-        <ErrorMonitoringDashboard config={config} />
-      )}
-      {currentDashboard === "crash-logs" && (
-        <CrashLogsDashboard config={config} />
-      )}
-      {currentDashboard === "runtime" && (
-        <NodeRuntimeDashboard config={config} />
-      )}
-      {currentDashboard === "minimal" && (
-        <div style={{ padding: "0 1.5rem 2rem 1.5rem", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
-          <MinimalDashboard config={config} />
-        </div>
-      )}
+        {currentDashboard === "full" && <FullBackendDashboard config={config} />}
+        {currentDashboard === "api" && <ApiOverviewDashboard config={config} />}
+        {currentDashboard === "performance" && (
+          <BackendPerformanceDashboard config={config} />
+        )}
+        {currentDashboard === "errors" && (
+          <ErrorMonitoringDashboard config={config} />
+        )}
+        {currentDashboard === "crash-logs" && (
+          <CrashLogsDashboard config={config} />
+        )}
+        {currentDashboard === "runtime" && (
+          <NodeRuntimeDashboard config={config} />
+        )}
+        {currentDashboard === "minimal" && (
+          <div style={{ padding: "0 1.5rem 2rem 1.5rem", width: "100%", boxSizing: "border-box" }}>
+            <MinimalDashboard config={config} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
