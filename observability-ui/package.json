@@ -1,6 +1,6 @@
 {
   "name": "@stacklenzz/ui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Stacklenzz developer-first React dashboard component library for backend observability",
   "author": "Goodnews Azonubi <azonubigoodnews@gmail.com>",
   "publishConfig": {
