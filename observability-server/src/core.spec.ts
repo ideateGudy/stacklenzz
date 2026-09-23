@@ -118,4 +118,22 @@ describe("Core Observability Module", () => {
     expect(found).toBeDefined();
     expect(found?.occurrences).toBeGreaterThanOrEqual(2);
   });
+
+  it("should redact sensitive authorization and cookie headers", async () => {
+    const { sanitizeHeaders } = await import("./core/logger.js");
+    const rawHeaders = {
+      authorization: "Bearer secret_token_123",
+      cookie: "session_id=abc456",
+      "x-api-key": "key_xyz",
+      "user-agent": "Mozilla/5.0",
+      host: "localhost:5000",
+    };
+
+    const sanitized = sanitizeHeaders(rawHeaders);
+    expect(sanitized.authorization).toBe("[REDACTED]");
+    expect(sanitized.cookie).toBe("[REDACTED]");
+    expect(sanitized["x-api-key"]).toBe("[REDACTED]");
+    expect(sanitized["user-agent"]).toBe("Mozilla/5.0");
+    expect(sanitized.host).toBe("localhost:5000");
+  });
 });

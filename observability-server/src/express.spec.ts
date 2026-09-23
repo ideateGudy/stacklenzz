@@ -42,7 +42,7 @@ describe("Express Observability Setup", () => {
     await fetch(`${baseUrl}/api/missing`);
 
     const statsRes = await fetch(`${baseUrl}/api/observability/stats`);
-    const stats = await statsRes.json();
+    const stats = (await statsRes.json()) as any;
     expect(stats.summary.totalRequests).toBeGreaterThanOrEqual(3);
     expect(stats.http.statusBreakdown.status2xx).toBeGreaterThanOrEqual(1);
     expect(stats.http.statusBreakdown.status4xx).toBeGreaterThanOrEqual(1);

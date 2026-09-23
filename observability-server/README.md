@@ -50,6 +50,8 @@ pnpm add @stacklenzz/server
 |---|---|---|
 | `@stacklenzz/server/express` | Express.js framework integration | `setupObservability`, `createObservabilityMiddleware`, `createMetricsHandler`, `createStatsHandler` |
 | `@stacklenzz/server/nestjs` | NestJS framework integration | `ObservabilityModule`, `ObservabilityInterceptor`, `ObservabilityExceptionFilter` |
+| `@stacklenzz/server/fastify` | Fastify framework integration | `fastifyObservability` |
+| `@stacklenzz/server/koa` | Koa & Connect framework integration | `koaObservability` |
 | `@stacklenzz/server/core` | Core telemetry, metrics, Winston logger & snapshots | `getObservabilitySnapshot`, `Counter`, `Gauge`, `register`, `logger`, `addBreadcrumb`, `trace`, `context`, `resetMetrics` |
 | `@stacklenzz/server` | Default root export | Re-exports all core primitives + Express utilities |
 

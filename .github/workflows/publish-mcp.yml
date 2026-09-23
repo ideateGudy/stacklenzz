@@ -1,0 +1,87 @@
+name: Publish Stacklenzz MCP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "observability-mcp/**"
+      - ".github/workflows/publish-mcp.yml"
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "Version bump type"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - skip
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish-mcp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: observability-mcp
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+
+      - name: Ensure latest npm
+        run: npm install -g npm@latest
+
+      - name: Install Dependencies
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
+        working-directory: .
+
+      - name: Run Tests
+        run: npm run test:mcp
+        working-directory: .
+
+      - name: Bump Version
+        id: bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+          if [ -z "$BUMP_TYPE" ]; then
+            BUMP_TYPE="patch"
+          fi
+
+          if [ "$BUMP_TYPE" != "skip" ]; then
+            NEW_VER=$(npm version $BUMP_TYPE --no-git-tag-version)
+            echo "NEW_VERSION=$NEW_VER" >> $GITHUB_OUTPUT
+            git add package.json
+            git commit -m "chore(mcp): release $NEW_VER"
+            git push origin main
+          else
+            echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Package
+        run: npm run build
+
+      - name: Publish to NPM
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

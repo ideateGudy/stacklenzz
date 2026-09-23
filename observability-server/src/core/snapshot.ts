@@ -2,6 +2,9 @@ import { register, getWindowMetrics } from "./metrics.js";
 import { ObservabilityConfig, getDefaultConfig } from "./config.js";
 import { getRecentErrors, getBreadcrumbs, getCrashLogAdaptor, computeFingerprint, getRecentBreadcrumbsForError } from "./logger.js";
 import type { CapturedErrorRecord, Breadcrumb } from "./logger.js";
+import { getRecentTraces } from "./traces.js";
+import { getJobMetrics } from "./jobs.js";
+import { evaluateSnapshotAlerts } from "./alerts.js";
 
 export type { CapturedErrorRecord, Breadcrumb };
 
@@ -26,6 +29,7 @@ export interface ObservabilitySnapshot {
     name: string;
     environment: string;
     version?: string;
+    release?: string;
     uptimeSeconds: number;
     timestamp: number;
   };
@@ -37,6 +41,13 @@ export interface ObservabilitySnapshot {
     p95LatencyMs: number;
     p99LatencyMs: number;
     avgLatencyMs: number;
+  };
+  slo?: {
+    availabilityTarget: number;
+    currentAvailability: number;
+    errorBudgetPercent: number; // 0 - 100
+    burnRate: number; // > 1 means consuming faster than allowed
+    status: "healthy" | "at_risk" | "breached";
   };
   windows: {
     last1m: TimeWindowStats;
@@ -66,6 +77,8 @@ export interface ObservabilitySnapshot {
     eventLoopLagMs: number;
     nodeVersion: string;
   };
+  traces?: import("./traces.js").TraceRecord[];
+  jobs?: import("./jobs.js").JobMetricsSummary;
   recentErrors: CapturedErrorRecord[];
   breadcrumbs?: Breadcrumb[];
   /**
@@ -156,6 +169,9 @@ export async function getObservabilitySnapshot(
 
         if (statusCode >= 200 && statusCode < 300) {
           statusBreakdown.status2xx += count;
+        } else if (statusCode === 304) {
+          // HTTP 304 Not Modified is a successful cache validation, count as 2xx
+          statusBreakdown.status2xx += count;
         } else if (statusCode >= 300 && statusCode < 400) {
           statusBreakdown.status3xx += count;
         } else if (statusCode >= 400 && statusCode < 500) {
@@ -241,11 +257,30 @@ export async function getObservabilitySnapshot(
         )
       : 0;
 
-  return {
+  // SLO evaluation with cold-start sample volume protection
+  const targetAvailability = config.slo?.availabilityTarget ?? 99.5;
+  const currentAvailability = totalRequests > 0 ? parseFloat((100 - errorRate).toFixed(3)) : 100;
+  const allowedErrorRate = 100 - targetAvailability;
+  const errorBudgetPercent =
+    allowedErrorRate > 0
+      ? Math.max(0, Math.min(100, parseFloat((((allowedErrorRate - errorRate) / allowedErrorRate) * 100).toFixed(1))))
+      : 100;
+  const burnRate = allowedErrorRate > 0 ? parseFloat((errorRate / allowedErrorRate).toFixed(2)) : 0;
+
+  // SLO status evaluation: budget depletion or high error rate ALWAYS marks status as breached
+  const sloStatus: "healthy" | "at_risk" | "breached" =
+    errorBudgetPercent <= 0 || errorRate >= 5.0 || burnRate > 1.5
+      ? "breached"
+      : errorBudgetPercent < 30 || errorRate >= 1.0 || burnRate > 0.8
+      ? "at_risk"
+      : "healthy";
+
+  const snapshot: ObservabilitySnapshot = {
     service: {
       name: config.serviceName,
       environment: config.environment,
       version: config.serviceVersion,
+      release: config.release,
       uptimeSeconds,
       timestamp: Date.now(),
     },
@@ -257,6 +292,13 @@ export async function getObservabilitySnapshot(
       p95LatencyMs: parseFloat((avgLatencyMs * 1.6).toFixed(1)),
       p99LatencyMs: parseFloat((avgLatencyMs * 2.2).toFixed(1)),
       avgLatencyMs,
+    },
+    slo: {
+      availabilityTarget: targetAvailability,
+      currentAvailability,
+      errorBudgetPercent,
+      burnRate,
+      status: sloStatus,
     },
     windows: {
       last1m: getWindowMetrics(1 * 60 * 1000),
@@ -281,6 +323,8 @@ export async function getObservabilitySnapshot(
       eventLoopLagMs: 1.2, // standard baseline
       nodeVersion: process.version,
     },
+    traces: getRecentTraces(20),
+    jobs: getJobMetrics(),
     recentErrors: getRecentErrors(),
     breadcrumbs: getRecentBreadcrumbsForError(10),
     dbCrashLogs: await (async () => {
@@ -336,4 +380,13 @@ export async function getObservabilitySnapshot(
       return undefined;
     })(),
   };
+
+  // Evaluate zero-cost alerts non-blockingly
+  if (config.alerts?.webhookUrl) {
+    evaluateSnapshotAlerts(snapshot, config.alerts).catch((err) => {
+      console.error("[Stacklenzz Alerting] Error evaluating snapshot alerts:", err);
+    });
+  }
+
+  return snapshot;
 }

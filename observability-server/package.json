@@ -28,7 +28,7 @@
     "monitoring"
   ],
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=20.0.0"
   },
   "sideEffects": false,
   "type": "module",
@@ -60,6 +60,16 @@
       "types": "./dist/nestjs/index.d.mts",
       "import": "./dist/nestjs/index.mjs",
       "require": "./dist/nestjs/index.cjs"
+    },
+    "./fastify": {
+      "types": "./dist/fastify/index.d.mts",
+      "import": "./dist/fastify/index.mjs",
+      "require": "./dist/fastify/index.cjs"
+    },
+    "./koa": {
+      "types": "./dist/koa/index.d.mts",
+      "import": "./dist/koa/index.mjs",
+      "require": "./dist/koa/index.cjs"
     }
   },
   "files": [

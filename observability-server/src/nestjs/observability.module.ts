@@ -11,6 +11,7 @@ import { ObservabilityExceptionFilter } from "./observability.filter.js";
 import { ObservabilityController } from "./observability.controller.js";
 import { initTracing } from "../core/tracing.js";
 import { setCrashLogAdaptor } from "../core/logger.js";
+import { getDefaultConfig } from "../core/config.js";
 
 @Global()
 @Module({})
@@ -19,6 +20,8 @@ export class ObservabilityModule {
    * Configure Observability synchronously.
    */
   static forRoot(options: NestObservabilityOptions = {}): DynamicModule {
+    getDefaultConfig(options);
+
     if (options.autoInitTracing !== false) {
       initTracing(options);
     }
@@ -115,6 +118,7 @@ export class ObservabilityModule {
         provide: OBSERVABILITY_OPTIONS,
         useFactory: async (...args: any[]) => {
           const opts = await options.useFactory!(...args);
+          if (opts) getDefaultConfig(opts);
           if (opts?.autoInitTracing !== false) {
             initTracing(opts);
           }
@@ -129,6 +133,7 @@ export class ObservabilityModule {
       provide: OBSERVABILITY_OPTIONS,
       useFactory: async (optionsFactory: ObservabilityOptionsFactory) => {
         const opts = await optionsFactory.createObservabilityOptions();
+        if (opts) getDefaultConfig(opts);
         if (opts?.autoInitTracing !== false) {
           initTracing(opts);
         }

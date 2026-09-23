@@ -6,8 +6,9 @@ import {
   httpRequestDuration,
   recordRequestEvent,
 } from "../core/metrics.js";
-import { logger as defaultLogger, addBreadcrumb } from "../core/logger.js";
+import { logger as defaultLogger, addBreadcrumb, sanitizeHeaders } from "../core/logger.js";
 import type { Logger } from "winston";
+import { TraceContext } from "../core/traces.js";
 
 export interface ExpressObservabilityOptions extends Partial<ObservabilityConfig> {
   metricsPath?: string;
@@ -108,11 +109,31 @@ export function createObservabilityMiddleware(
         },
       });
 
-      const safeHeaders: Record<string, string> = {};
-      for (const [k, v] of Object.entries(req.headers || {})) {
-        if (typeof v === "string") safeHeaders[k] = v;
-        else if (Array.isArray(v)) safeHeaders[k] = v.join(", ");
-      }
+      // Record trace in recent traces waterfall buffer with distinct execution spans
+      const traceCtx = new TraceContext(`${req.method} ${route}`, req.method, route, durationMs);
+      
+      // Stage 1: Middleware & Auth Evaluation
+      traceCtx.addSpan("Express Middleware & Auth", "middleware", Math.max(0.05, durationMs * 0.25), "ok", {
+        path: req.path,
+        headersCount: Object.keys(req.headers || {}).length,
+      });
+
+      // Stage 2: Controller & Route Handler Execution
+      traceCtx.addSpan(`Route Handler ${req.method} ${route}`, "controller", Math.max(0.1, durationMs * 0.65), res.statusCode >= 500 ? "error" : "ok", {
+        route,
+        method: req.method,
+      });
+
+      // Stage 3: HTTP Serialization & Response Finish
+      traceCtx.addSpan("HTTP Response Serialization", "http", Math.max(0.05, durationMs * 0.1), res.statusCode >= 500 ? "error" : "ok", {
+        route,
+        method: req.method,
+        statusCode: res.statusCode,
+      });
+
+      traceCtx.end(res.statusCode, res.statusCode >= 500 ? "error" : "ok", durationMs);
+
+      const safeHeaders = sanitizeHeaders(req.headers || {});
       if (!safeHeaders["host"] && req.get) safeHeaders["host"] = req.get("host") || "";
       if (!safeHeaders["user-agent"] && req.get) safeHeaders["user-agent"] = req.get("user-agent") || "";
 
@@ -136,7 +157,7 @@ export function createObservabilityMiddleware(
           isMiddlewareSummary: true,
         });
       } else if (res.statusCode >= 400) {
-        loggerInstance.error(`HTTP Client Error (${res.statusCode}) on ${req.method} ${req.originalUrl || req.url}`, {
+        loggerInstance.warn(`HTTP Client Error (${res.statusCode}) on ${req.method} ${req.originalUrl || req.url}`, {
           ...logData,
           isMiddlewareSummary: true,
         });

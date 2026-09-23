@@ -59,7 +59,7 @@ export function setupObservability(
     extraIgnored.push(statsPath);
   }
   if (crashLogsPath) {
-    extraIgnored.push(crashLogsPath);
+    extraIgnored.push(crashLogsPath, `${crashLogsPath}/:id`);
   }
   const mergedIgnored = Array.from(
     new Set([...(options.ignoredPaths || ["/metrics", "/api/observability/stats", "/favicon.ico"]), ...extraIgnored])

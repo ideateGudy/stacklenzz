@@ -60,54 +60,108 @@ export interface ObservabilityConfig {
   ignoredPaths?: string[];
 
   /**
+   * Release version or Git SHA tag (e.g. 'v1.2.0' or 'git-7a8f9b').
+   * Auto-detected from process.env.RELEASE or process.env.APP_VERSION or package.json if omitted.
+   */
+  release?: string;
+
+  /**
+   * Optional zero-cost webhook alert configuration (Slack, Discord, generic webhook).
+   */
+  alerts?: import("./alert-types.js").AlertConfig;
+
+  /**
+   * Optional Service Level Objective (SLO) target definition.
+   */
+  slo?: import("./alert-types.js").SloConfig;
+
+  /**
    * Optional pluggable database adaptor to persist 5xx server crash logs.
    */
   crashLogAdaptor?: CrashLogAdaptor;
 }
 
+let activeGlobalConfig: ObservabilityConfig | null = null;
+
+export function setActiveConfig(config: ObservabilityConfig): void {
+  activeGlobalConfig = config;
+}
+
+export function resetActiveConfig(): void {
+  activeGlobalConfig = null;
+}
+
 export const getDefaultConfig = (overrides?: Partial<ObservabilityConfig>): ObservabilityConfig => {
-  return {
+  const merged: ObservabilityConfig = {
     serviceName:
       overrides?.serviceName ||
+      activeGlobalConfig?.serviceName ||
       process.env.OTEL_SERVICE_NAME ||
       process.env.PROJECT_NAME ||
       "stacklenzz-server",
     environment:
       overrides?.environment ||
+      activeGlobalConfig?.environment ||
       process.env.NODE_ENV ||
       "development",
     instanceId:
       overrides?.instanceId ||
+      activeGlobalConfig?.instanceId ||
       process.env.EC2_INSTANCE_ID ||
       process.env.HOSTNAME ||
       "local",
     otlpEndpoint:
       overrides?.otlpEndpoint ||
+      activeGlobalConfig?.otlpEndpoint ||
       process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
       "http://localhost:4318",
     logLevel:
       overrides?.logLevel ||
+      activeGlobalConfig?.logLevel ||
       process.env.LOG_LEVEL ||
       "info",
     enableTracing:
       overrides?.enableTracing !== undefined
         ? overrides.enableTracing
+        : activeGlobalConfig?.enableTracing !== undefined
+        ? activeGlobalConfig.enableTracing
         : process.env.ENABLE_TRACING !== "false",
     serviceVersion:
       overrides?.serviceVersion ||
+      overrides?.release ||
+      activeGlobalConfig?.serviceVersion ||
+      activeGlobalConfig?.release ||
+      process.env.RELEASE ||
       process.env.SERVICE_VERSION ||
+      process.env.npm_package_version ||
       "1.0.0",
-    metricsPrefix: overrides?.metricsPrefix ?? "nodejs_",
-    durationBuckets: overrides?.durationBuckets ?? [
+    metricsPrefix: overrides?.metricsPrefix ?? activeGlobalConfig?.metricsPrefix ?? "nodejs_",
+    durationBuckets: overrides?.durationBuckets ?? activeGlobalConfig?.durationBuckets ?? [
       0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
     ],
-    crashLogAdaptor: overrides?.crashLogAdaptor,
-    ignoredPaths: overrides?.ignoredPaths ?? [
+    release:
+      overrides?.release ||
+      activeGlobalConfig?.release ||
+      process.env.RELEASE ||
+      process.env.APP_VERSION ||
+      overrides?.serviceVersion ||
+      process.env.npm_package_version ||
+      "1.0.0",
+    alerts: overrides?.alerts || activeGlobalConfig?.alerts,
+    slo: overrides?.slo || activeGlobalConfig?.slo,
+    crashLogAdaptor: overrides?.crashLogAdaptor || activeGlobalConfig?.crashLogAdaptor,
+    ignoredPaths: overrides?.ignoredPaths ?? activeGlobalConfig?.ignoredPaths ?? [
       "/metrics",
       "/api/observability/stats",
       "/favicon.ico"
     ],
   };
+
+  if (overrides && Object.keys(overrides).length > 0) {
+    activeGlobalConfig = merged;
+  }
+
+  return merged;
 };
 
 import packageJson from "../../package.json" with { type: "json" };

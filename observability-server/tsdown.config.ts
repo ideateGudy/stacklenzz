@@ -6,6 +6,8 @@ export default defineConfig({
     "config/index": "src/core/config.ts",
     "express/index": "src/express/index.ts",
     "nestjs/index": "src/nestjs/index.ts",
+    "fastify/index": "src/fastify/index.ts",
+    "koa/index": "src/koa/index.ts",
   },
   format: ["cjs", "esm"],
   dts: true,

@@ -103,7 +103,7 @@ export function createCrashLogDeleteHandler(options: StatsHandlerOptions = {}): 
 
       const { getCrashLogAdaptor } = await import("../core/logger.js");
       const adaptor = getCrashLogAdaptor();
-      const id = req.params.id;
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
       if (!id) {
         res.status(400).json({ error: "Missing crash log ID parameter" });

@@ -3,6 +3,9 @@ export * from "./tracing.js";
 export * from "./metrics.js";
 export * from "./logger.js";
 export * from "./snapshot.js";
+export * from "./alert-types.js";
+export * from "./alerts.js";
+export * from "./traces.js";
+export * from "./jobs.js";
 export * from "../express/index.js";
 export { trace, context } from "@opentelemetry/api";
-

@@ -1,6 +1,7 @@
 import winston from "winston";
 import { trace, context } from "@opentelemetry/api";
 import { ObservabilityConfig, getDefaultConfig } from "./config.js";
+import { alertOnCrashLog } from "./alerts.js";
 
 const { combine, timestamp, json, errors } = winston.format;
 
@@ -57,6 +58,34 @@ export interface CapturedErrorRecord {
     ip?: string;
     memoryMb?: number;
   };
+}
+
+const SENSITIVE_HEADERS = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "x-api-key",
+  "proxy-authorization",
+  "api-key",
+  "access-token",
+]);
+
+/**
+ * Sanitizes headers object to prevent Bearer tokens and session cookies from being captured in telemetry logs.
+ */
+export function sanitizeHeaders(headers: Record<string, any> = {}): Record<string, string> {
+  const safeHeaders: Record<string, string> = {};
+  for (const [k, v] of Object.entries(headers)) {
+    const keyLower = k.toLowerCase();
+    if (SENSITIVE_HEADERS.has(keyLower)) {
+      safeHeaders[k] = "[REDACTED]";
+    } else if (typeof v === "string") {
+      safeHeaders[k] = v;
+    } else if (Array.isArray(v)) {
+      safeHeaders[k] = v.join(", ");
+    }
+  }
+  return safeHeaders;
 }
 
 export type CrashLogEntry = CapturedErrorRecord;
@@ -261,6 +290,12 @@ export function recordError(err: {
       existing.breadcrumbs = getRecentBreadcrumbsForError(10);
     }
     notifyCrashLogAdaptor(existing);
+    
+    // Evaluate crash alert non-blockingly
+    const cfg = getDefaultConfig();
+    if (cfg.alerts?.webhookUrl) {
+      alertOnCrashLog(existing, cfg.alerts, { name: cfg.serviceName, environment: cfg.environment }).catch(() => {});
+    }
     return;
   }
 
@@ -305,6 +340,12 @@ export function recordError(err: {
     errorRingBuffer.pop();
   }
   notifyCrashLogAdaptor(record);
+
+  // Evaluate crash alert non-blockingly
+  const cfg = getDefaultConfig();
+  if (cfg.alerts?.webhookUrl) {
+    alertOnCrashLog(record, cfg.alerts, { name: cfg.serviceName, environment: cfg.environment }).catch(() => {});
+  }
 }
 
 /**

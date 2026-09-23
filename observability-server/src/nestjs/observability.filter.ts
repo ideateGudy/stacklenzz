@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { OBSERVABILITY_OPTIONS } from "./interfaces.js";
 import type { NestObservabilityOptions } from "./interfaces.js";
-import { logger as defaultLogger, addBreadcrumb, setCrashLogAdaptor } from "../core/logger.js";
+import { logger as defaultLogger, addBreadcrumb, setCrashLogAdaptor, sanitizeHeaders } from "../core/logger.js";
 import { recordRequestEvent } from "../core/metrics.js";
 import type { Logger } from "winston";
 
@@ -63,11 +63,7 @@ export class ObservabilityExceptionFilter implements ExceptionFilter {
         : String(errorResponse);
 
     const rawHeaders = request.headers || request.raw?.headers || {};
-    const safeHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(rawHeaders)) {
-      if (typeof v === "string") safeHeaders[k] = v;
-      else if (Array.isArray(v)) safeHeaders[k] = v.join(", ");
-    }
+    const safeHeaders = sanitizeHeaders(rawHeaders);
     if (!safeHeaders["host"] && request.get) {
       safeHeaders["host"] = request.get("host") || "";
     }
