@@ -1,6 +1,6 @@
 {
   "name": "@stacklenzz/cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Stacklenzz CLI - Install and validate backend observability dashboards in React and Next.js applications",
   "author": "Goodnews Azonubi <azonubigoodnews@gmail.com>",
   "publishConfig": {
