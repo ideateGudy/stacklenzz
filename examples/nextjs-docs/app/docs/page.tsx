@@ -537,7 +537,7 @@ export default function AdminObservabilityPage() {
           <section id="dashboard-themes" className="mb-14">
             <h2 className="text-2xl font-bold m-0 mb-3">6 Built-in Runtime Themes & State Management</h2>
             <p className="text-slate-400 m-0 mb-4 text-[14px]">
-              Switch themes live on the UI or configure your preferred default aesthetic. Powered by <strong>Redux Toolkit</strong> (<code>@reduxjs/toolkit</code> &amp; <code>react-redux</code>) with automatic <code>localStorage</code> persistence (<code>stacklenzz_theme</code>):
+              Switch themes live on the UI or configure your preferred default aesthetic. Powered by zero-dependency <strong>React Context</strong> with automatic <code>localStorage</code> persistence (<code>stacklenzz_theme</code>):
             </p>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 mb-4">
               {[

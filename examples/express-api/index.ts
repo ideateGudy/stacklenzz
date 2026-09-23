@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
-import { setupObservability, logger, addBreadcrumb, CapturedErrorRecord } from "@stacklenzz/server";
+import { setupObservability, logger, addBreadcrumb, CapturedErrorRecord, trackJob, trackDatabaseQuery } from "@stacklenzz/server";
 import pg from "pg";
 
 dotenv.config();
@@ -81,7 +81,18 @@ if (DATABASE_URL && !DATABASE_URL.includes("your_password")) {
 setupObservability(app, {
   serviceName: "bookme-express-api",
   environment: "development",
+  release: "v1.2.4",
   autoInitTracing: false,
+  slo: {
+    availabilityTarget: 99.5,
+    periodDays: 30,
+  },
+  alerts: {
+    webhookUrl: process.env.DISCORD_WEBHOOK_URL,
+    errorRateThreshold: 5,
+    cooldownMinutes: 1, // 1 minute smart cooldown per error condition
+    alertOn5xxCrash: true, // Fire message on 5xx server crash
+  },
   crashLogAdaptor: {
     async save(errorLog: CapturedErrorRecord): Promise<void> {
       if (!pool) return;
@@ -147,12 +158,17 @@ setupObservability(app, {
 app.use(express.json());
 
 // Sample business routes
-app.get("/api/users", (_req: Request, res: Response) => {
+app.get("/api/users", async (_req: Request, res: Response) => {
   logger.info("Users fetched successfully");
-  res.json([
-    { id: 1, name: "Alice Developer", role: "admin" },
-    { id: 2, name: "Bob Engineer", role: "member" },
-  ]);
+  const users = await trackDatabaseQuery("SELECT * FROM users WHERE active = true", async () => {
+    // Simulate query execution time
+    await new Promise((r) => setTimeout(r, 12));
+    return [
+      { id: 1, name: "Alice Developer", role: "admin" },
+      { id: 2, name: "Bob Engineer", role: "member" },
+    ];
+  });
+  res.json(users);
 });
 
 app.post("/api/login", (req: Request, res: Response) => {
@@ -234,6 +250,26 @@ app.post("/api/simulate-crash", (req: Request, res: Response) => {
   });
   res.status(502).json({
     gateway: "stripe-v1",
+  });
+});
+
+// 3. Trigger simulated background job using trackJob
+app.post("/api/trigger-job", async (req: Request, res: Response) => {
+  const { jobName = "email-digest", queueName = "notifications" } = req.body || {};
+  
+  const result = await trackJob(
+    jobName,
+    async () => {
+      // Simulate background worker processing time
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      return { processed: 42, recipientGroup: "active_subscribers" };
+    },
+    { queue: queueName }
+  );
+
+  res.json({
+    message: "Background job tracked successfully",
+    result,
   });
 });
 

@@ -5,7 +5,7 @@
 <h1 align="center">Stacklenzz</h1>
 
 <p align="center">
-  A developer-first backend observability, monitoring, and logging ecosystem for <b>Express</b> and <b>NestJS</b>, paired with a zero-configuration, ready-to-install <b>React & Next.js</b> dashboard UI and CLI.
+  A developer-first backend observability, monitoring, and logging ecosystem for <b>Express</b>, <b>NestJS</b>, <b>Fastify</b>, and <b>Koa</b>, paired with a zero-configuration, ready-to-install <b>React & Next.js</b> dashboard UI, MCP AI agent, and CLI.
 </p>
 
 <p align="center">
@@ -31,13 +31,14 @@
 
 ## 📦 Monorepo Architecture & NPM Packages
 
-This repository contains three standalone, production-ready NPM packages and practical example applications:
+This repository contains four standalone, production-ready NPM packages and practical example applications:
 
 | Package | Directory | Description | Documentation |
 |---|---|---|---|
-| [`@stacklenzz/server`](./observability-server) | `observability-server/` | Full-featured backend SDK for Express & NestJS with OpenTelemetry tracing, Prometheus `/metrics`, Winston logger, rolling error rate windows, and deterministic error fingerprinting | [Read SDK Guide →](./observability-server/README.md) |
-| [`@stacklenzz/ui`](./observability-ui) | `observability-ui/` | Modern React/Next.js dashboard suite powered by native React Context, 6 built-in runtime themes with automatic `localStorage` persistence, interactive template switcher, error inspector with breadcrumbs, and latency gauges | [Read UI Guide →](./observability-ui/README.md) |
+| [`@stacklenzz/server`](./observability-server) | `observability-server/` | Full-featured backend SDK for Express, NestJS, Fastify & Koa with OpenTelemetry tracing, Prometheus `/metrics`, Winston logger, trace waterfall buffer, background jobs tracker, zero-cost Slack/Discord webhook alerts, and SLO evaluation | [Read SDK Guide →](./observability-server/README.md) |
+| [`@stacklenzz/ui`](./observability-ui) | `observability-ui/` | Modern React/Next.js dashboard suite powered by native React Context, 6 built-in runtime themes with automatic `localStorage` persistence, interactive template switcher, trace waterfall Gantt inspector, SLO error budget card, and queue overview | [Read UI Guide →](./observability-ui/README.md) |
 | [`@stacklenzz/cli`](./observability-cli) | `observability-cli/` | Zero-configuration CLI detecting frameworks and package managers to scaffold dashboards and run `doctor` connectivity diagnostics | [Read CLI Guide →](./observability-cli/README.md) |
+| [`@stacklenzz/mcp`](./observability-mcp) | `observability-mcp/` | Model Context Protocol (MCP) server for AI coding assistants (Cursor, Windsurf, Claude) to query live health, crash logs, traces, and SLOs | [Read MCP Guide →](./observability-mcp/README.md) |
 
 ---
 
@@ -46,6 +47,8 @@ This repository contains three standalone, production-ready NPM packages and pra
 `@stacklenzz/server` provides dedicated, tree-shakable subpath exports tailored to your architecture:
 - `@stacklenzz/server/express` (Express setup & middleware)
 - `@stacklenzz/server/nestjs` (`ObservabilityModule.forRoot()` & `forRootAsync()`)
+- `@stacklenzz/server/fastify` (`fastifyObservability` plugin adapter)
+- `@stacklenzz/server/koa` (`koaObservability()` middleware adapter)
 - `@stacklenzz/server/core` or `@stacklenzz/server` (Core telemetry, Prometheus metrics, Winston logger, snapshots, and OpenTelemetry)
 
 ### 1. Express Setup
@@ -142,68 +145,90 @@ async function bootstrap() {
 bootstrap();
 ```
 
-### 3. Other Node.js Frameworks & Background Services (`@stacklenzz/server/core`)
+### 3. Fastify 1-Line Setup (`@stacklenzz/server/fastify`)
 
-If you are using **Fastify**, **Koa**, **Hono**, **Hapi**, a pure Node `http` server, or background queues (BullMQ, Kafka, RabbitMQ), you can use `@stacklenzz/server/core` to record metrics, capture errors, and serve the `/api/observability/stats` endpoint:
-
-#### Fastify Example:
 ```typescript
 import Fastify from "fastify";
-import { getObservabilitySnapshot, recordError, addBreadcrumb, logger } from "@stacklenzz/server/core";
+import { fastifyObservability } from "@stacklenzz/server/fastify";
 
 const fastify = Fastify({ logger: false });
 
-// 1. Expose the telemetry stats endpoint for @stacklenzz/ui dashboards
-fastify.get("/api/observability/stats", async (request, reply) => {
-  const snapshot = await getObservabilitySnapshot();
-  return reply.header("Access-Control-Allow-Origin", "*").send(snapshot);
+// Automatically attaches /metrics, /api/observability/stats, and request span profiling
+await fastify.register(fastifyObservability, {
+  serviceName: "my-fastify-api",
+  environment: "production",
 });
 
-// 2. Global error hook to capture issues into the dashboard
-fastify.setErrorHandler((error, request, reply) => {
-  recordError({
-    message: error.message,
-    stack: error.stack,
-    route: request.url,
-    method: request.method,
-    statusCode: error.statusCode || 500,
-  });
-  reply.status(error.statusCode || 500).send({ error: error.message });
+await fastify.listen({ port: 5000 });
+```
+
+### 4. Koa 1-Line Setup (`@stacklenzz/server/koa`)
+
+```typescript
+import Koa from "koa";
+import { koaObservability } from "@stacklenzz/server/koa";
+
+const app = new Koa();
+
+// Automatically instruments request lifecycles and provides /metrics & /api/observability/stats
+app.use(koaObservability({ serviceName: "my-koa-api" }));
+
+app.listen(5000);
+```
+
+### 5. AI Coding Assistant Integration (`@stacklenzz/mcp`)
+
+Connect your live telemetry directly to Cursor, Windsurf, or Claude:
+
+```bash
+# Start the MCP server over stdio
+npx @stacklenzz/mcp
+```
+
+In Cursor `settings.json` or `.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "stacklenzz": {
+      "command": "npx",
+      "args": ["-y", "@stacklenzz/mcp"],
+      "env": {
+        "STACKLENZZ_ENDPOINT": "http://localhost:5000/api/observability/stats"
+      }
+    }
+  }
+}
+```
+
+### 6. Zero-Cost Alerting (Slack & Discord Webhooks)
+
+Configure incoming webhook alerts for Slack Block Kit & Discord Embeds without paying for external alert SaaS:
+
+```typescript
+setupObservability(app, {
+  serviceName: "my-api",
+  alerts: {
+    webhookUrl: process.env.SLACK_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL,
+    alertOn5xxCrash: true,   // Immediate alert on 5xx server crash
+    errorRateThreshold: 5.0, // 5% error rate triggers critical alert
+    p95LatencyThresholdMs: 1000,
+    cooldownMinutes: 15,
+  },
+  slo: {
+    availabilityTarget: 99.9, // 99.9% SRE target
+  },
 });
 ```
 
-#### Koa Example:
+### 7. Background Job Tracking (BullMQ / Cron)
+
 ```typescript
-import Koa from "koa";
-import Router from "@koa/router";
-import { getObservabilitySnapshot, recordError } from "@stacklenzz/server/core";
+import { trackJob } from "@stacklenzz/server/core";
 
-const app = new Koa();
-const router = new Router();
-
-// Observability stats endpoint for dashboard UI
-router.get("/api/observability/stats", async (ctx) => {
-  ctx.set("Access-Control-Allow-Origin", "*");
-  ctx.body = await getObservabilitySnapshot();
-});
-
-// Middleware for error tracking
-app.use(async (ctx, next) => {
-  try {
-    await next();
-  } catch (err: any) {
-    recordError({
-      message: err.message,
-      stack: err.stack,
-      route: ctx.path,
-      method: ctx.method,
-      statusCode: err.status || 500,
-    });
-    throw err;
-  }
-});
-
-app.use(router.routes());
+// Wraps any promise, recording duration, active status, and failure rates in snapshot.jobs
+await trackJob("sync-daily-ledger", async () => {
+  await processLedger();
+}, { queue: "accounting" });
 ```
 
 #### Background Workers, Crons & Microservices:
@@ -286,7 +311,7 @@ The CLI detects whether you are using **Next.js (App Router / Pages Router)** or
 
 Install the UI package:
 ```bash
-npm install @stacklenzz/ui lucide-react @reduxjs/toolkit react-redux
+npm install @stacklenzz/ui lucide-react
 ```
 
 Create your page (e.g. Next.js App Router `app/admin/observability/page.tsx`):

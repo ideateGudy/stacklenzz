@@ -93,7 +93,19 @@ if (MONGODB_URI) {
   imports: [
     ObservabilityModule.forRoot({
       serviceName: "bookme-nestjs-api",
+      environment: "production",
+      release: "v2.0.1",
       autoInitTracing: false,
+      slo: {
+        availabilityTarget: 99.5,
+        periodDays: 30,
+      },
+      alerts: {
+        webhookUrl: process.env.DISCORD_WEBHOOK_URL,
+        errorRateThreshold: 3,
+        cooldownMinutes: 15,
+        alertOn5xxCrash: true,
+      },
       crashLogAdaptor: {
         async save(errorLog: CapturedErrorRecord): Promise<void> {
           console.log("💾 [NestJS MongoDB Adaptor] Persisting 5xx crash log:", errorLog.id);
