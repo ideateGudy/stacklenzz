@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw, Server, ShieldCheck, Clock } from "lucide-react";
+import { RefreshCw, Server, ShieldCheck, Clock, Tag, Target } from "lucide-react";
 import { ObservabilitySnapshot } from "../types.js";
 import { useObservability } from "../context.js";
 
@@ -135,6 +135,26 @@ export function ServiceHeader({
               >
                 Env: <strong style={{ color: "#ffffff", textTransform: "capitalize" }}>{env}</strong>
               </span>
+
+              {snapshot?.service.release && (
+                <span
+                  style={{
+                    padding: "0.2rem 0.6rem",
+                    borderRadius: "0.375rem",
+                    background: "rgba(99, 102, 241, 0.15)",
+                    border: "1px solid rgba(99, 102, 241, 0.3)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    color: "#a5b4fc",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                  }}
+                >
+                  <Tag size={12} color="#a5b4fc" />
+                  Release: <strong style={{ color: "#e0e7ff" }}>{snapshot.service.release}</strong>
+                </span>
+              )}
             </div>
             <span style={{ fontSize: "0.75rem", color: themeColors?.textMuted || "#94a3b8", fontFamily: "monospace", marginTop: "0.25rem" }}>
               Synced at <strong style={{ color: "#e2e8f0" }}>{timestamp}</strong>
@@ -211,6 +231,44 @@ export function ServiceHeader({
             />
             {healthStatus.label}
           </span>
+
+          {snapshot?.slo && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                padding: "0.25rem 0.75rem",
+                borderRadius: "9999px",
+                background:
+                  snapshot.slo.status === "healthy"
+                    ? "rgba(16, 185, 129, 0.15)"
+                    : snapshot.slo.status === "at_risk"
+                    ? "rgba(245, 158, 11, 0.15)"
+                    : "rgba(239, 68, 68, 0.15)",
+                color:
+                  snapshot.slo.status === "healthy"
+                    ? "#34d399"
+                    : snapshot.slo.status === "at_risk"
+                    ? "#fbbf24"
+                    : "#f87171",
+                border: `1px solid ${
+                  snapshot.slo.status === "healthy"
+                    ? "rgba(16, 185, 129, 0.3)"
+                    : snapshot.slo.status === "at_risk"
+                    ? "rgba(245, 158, 11, 0.3)"
+                    : "rgba(239, 68, 68, 0.3)"
+                }`,
+                fontSize: "0.72rem",
+                fontWeight: 800,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+              }}
+            >
+              <Target size={12} />
+              SLO: {snapshot.slo.status.replace("_", " ")} ({snapshot.slo.currentAvailability}%)
+            </span>
+          )}
 
           {isMock && (
             <span

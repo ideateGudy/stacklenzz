@@ -14,6 +14,9 @@ export * from "./components/RuntimeMetrics.js";
 export * from "./components/ErrorInspector.js";
 export * from "./components/DashboardSwitcher.js";
 export * from "./components/CrashLogsList.js";
+export * from "./components/SloCard.js";
+export * from "./components/TraceWaterfall.js";
+export * from "./components/JobsOverview.js";
 
 // Templates
 export * from "./templates/ObservabilityDashboard.js";

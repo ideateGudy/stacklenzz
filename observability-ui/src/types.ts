@@ -48,11 +48,57 @@ export interface TimeWindowStats {
   avgDurationMs: number;
 }
 
+export interface SpanRecord {
+  id: string;
+  name: string;
+  type: "http" | "controller" | "guard" | "interceptor" | "middleware" | "database" | "external" | "job" | "custom";
+  durationMs: number;
+  startTime: number;
+  endTime: number;
+  status: "ok" | "error";
+  attributes?: Record<string, any>;
+}
+
+export interface TraceRecord {
+  traceId: string;
+  rootSpanName: string;
+  method?: string;
+  route?: string;
+  statusCode?: number;
+  durationMs: number;
+  startTime: number;
+  status: "ok" | "error";
+  spans: SpanRecord[];
+}
+
+export interface JobRecord {
+  id: string;
+  name: string;
+  queue?: string;
+  status: "completed" | "failed" | "running";
+  durationMs?: number;
+  startTime: number;
+  endTime?: number;
+  error?: string;
+  attempts?: number;
+}
+
+export interface JobMetricsSummary {
+  totalJobs: number;
+  activeJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  failureRate: number;
+  avgDurationMs: number;
+  recentJobs: JobRecord[];
+}
+
 export interface ObservabilitySnapshot {
   service: {
     name: string;
     environment: string;
     version?: string;
+    release?: string;
     uptimeSeconds: number;
     timestamp: number;
   };
@@ -64,6 +110,13 @@ export interface ObservabilitySnapshot {
     p95LatencyMs: number;
     p99LatencyMs: number;
     avgLatencyMs: number;
+  };
+  slo?: {
+    availabilityTarget: number;
+    currentAvailability: number;
+    errorBudgetPercent: number; // 0 - 100
+    burnRate: number;
+    status: "healthy" | "at_risk" | "breached";
   };
   windows?: {
     last1m: TimeWindowStats;
@@ -93,6 +146,8 @@ export interface ObservabilitySnapshot {
     eventLoopLagMs: number;
     nodeVersion: string;
   };
+  traces?: TraceRecord[];
+  jobs?: JobMetricsSummary;
   recentErrors?: CapturedErrorRecord[];
   breadcrumbs?: Breadcrumb[];
   /**

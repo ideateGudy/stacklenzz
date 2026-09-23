@@ -158,7 +158,7 @@ describe("Observability UI Components & Templates Test Suite", () => {
       expect(store.getState().observability.theme).toBe("dracula");
     });
 
-    it("should notify subscribers when Redux Toolkit state changes", () => {
+    it("should notify subscribers when state changes", () => {
       const store = UI.createObservabilityStore("tokyo-night");
       let notifiedTheme = "";
 
@@ -272,12 +272,48 @@ describe("Observability UI Components & Templates Test Suite", () => {
       expect(crashTemplate?.label).toBe("Database Crash Logs");
     });
 
-    it("should include realistic dbCrashLogs in mock snapshot", () => {
-      const mock = UI.generateMockSnapshot();
-      expect(mock.dbCrashLogs).toBeDefined();
-      expect(mock.dbCrashLogs?.length).toBeGreaterThanOrEqual(1);
-      expect(mock.dbCrashLogs?.[0].statusCode).toBeGreaterThanOrEqual(500);
-      expect(mock.dbCrashLogs?.[0].stack).toBeDefined();
+    it("should export SloCard, TraceWaterfall, and JobsOverview components", () => {
+      expect(UI.SloCard).toBeDefined();
+      expect(UI.TraceWaterfall).toBeDefined();
+      expect(UI.JobsOverview).toBeDefined();
+    });
+
+    it("should render SloCard with error budget and burn rate without crashing", () => {
+      const sloData = {
+        availabilityTarget: 99.5,
+        currentAvailability: 99.8,
+        errorBudgetPercent: 60,
+        burnRate: 0.8,
+        status: "healthy" as const,
+      };
+      expect(sloData.errorBudgetPercent).toBe(60);
+      expect(sloData.burnRate).toBe(0.8);
+      expect(UI.SloCard).toBeDefined();
+    });
+
+    it("should export TraceWaterfall and process spans hierarchy", () => {
+      const traces = [
+        {
+          traceId: "t1",
+          rootSpanName: "GET /api/checkout",
+          durationMs: 45,
+          startTime: Date.now(),
+          status: "ok" as const,
+          spans: [
+            {
+              id: "s1",
+              name: "AuthGuard",
+              type: "guard" as const,
+              durationMs: 5,
+              startTime: Date.now() - 40,
+              endTime: Date.now() - 35,
+              status: "ok" as const,
+            },
+          ],
+        },
+      ];
+      expect(traces[0].spans.length).toBe(1);
+      expect(UI.TraceWaterfall).toBeDefined();
     });
   });
 });

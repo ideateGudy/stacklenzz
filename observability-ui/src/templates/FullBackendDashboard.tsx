@@ -7,6 +7,9 @@ import { LatencyGauge } from "../components/LatencyGauge.js";
 import { EndpointTable } from "../components/EndpointTable.js";
 import { RuntimeMetrics } from "../components/RuntimeMetrics.js";
 import { ErrorInspector } from "../components/ErrorInspector.js";
+import { SloCard } from "../components/SloCard.js";
+import { TraceWaterfall } from "../components/TraceWaterfall.js";
+import { JobsOverview } from "../components/JobsOverview.js";
 import { ObservabilityConfig } from "../types.js";
 import { Activity, AlertTriangle, Clock, Zap } from "lucide-react";
 
@@ -147,6 +150,9 @@ function DashboardContent() {
         activeErrorRate={currentErrorRate}
       />
 
+      {/* Service Level Objective & Error Budget */}
+      {s.slo && <SloCard slo={s.slo} summary={s.summary} />}
+
       {/* Top 4 Key Metric Cards */}
       <MetricGrid>
         <MetricCard
@@ -242,6 +248,12 @@ function DashboardContent() {
 
       {/* Endpoints Table */}
       <EndpointTable endpoints={s.http.topEndpoints} />
+
+      {/* Jobs Overview (BullMQ, Agenda, Cron) */}
+      <JobsOverview jobs={s.jobs} />
+
+      {/* Distributed Trace Explorer Waterfall */}
+      <TraceWaterfall traces={s.traces} />
 
       {/* Live Error Inspector synced with timeWindow & Global Breadcrumbs Feed */}
       <ErrorInspector

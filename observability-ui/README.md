@@ -19,7 +19,7 @@ Built with Vanilla CSS & zero heavy UI framework lock-in, featuring glassmorphis
 ## Features
 
 - **Native React Context Architecture**:
-  - Powered by React Context (`useState`, `useEffect`, `useCallback`, `useMemo`) — zero third-party state manager required (`@reduxjs/toolkit` / `react-redux`).
+  - Powered by native React Context (`useState`, `useEffect`, `useCallback`, `useMemo`).
   - Automatic `localStorage` persistence under key `stacklenzz_theme` — theme selection persists seamlessly across reloads and navigation.
   - Dynamic full-page theme color propagation affecting card backgrounds, text typography, borders, badges, and charts.
 - **7 Pre-Composed Dashboard Templates**:

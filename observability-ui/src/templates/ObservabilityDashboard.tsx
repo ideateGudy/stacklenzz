@@ -60,6 +60,23 @@ function ObservabilityDashboardInner({
         transition: "background-color 0.25s ease, color 0.25s ease",
       }}
     >
+      <style>{`
+        /* Dynamic Stacklenzz Scrollbars */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: ${themeColors.background};
+        }
+        ::-webkit-scrollbar-thumb {
+          background: ${themeColors.borderSubtle || "rgba(99, 102, 241, 0.3)"};
+          border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: ${themeColors.accent || "#6366f1"};
+        }
+      `}</style>
       <div style={{ margin: "0 auto", width: "100%", maxWidth: "1536px", boxSizing: "border-box" }}>
         {showSwitcher && (
           <div style={{ padding: "1.25rem 1.5rem 0 1.5rem" }}>
