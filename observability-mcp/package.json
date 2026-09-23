@@ -1,6 +1,6 @@
 {
   "name": "@stacklenzz/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Stacklenzz Model Context Protocol (MCP) server for AI coding assistants (Cursor, Windsurf, Claude, Gemini)",
   "author": "Goodnews Azonubi <azonubigoodnews@gmail.com>",
   "publishConfig": {
