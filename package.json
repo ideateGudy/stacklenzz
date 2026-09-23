@@ -31,6 +31,7 @@
     "pack:all": "npm run pack:server && npm run pack:ui && npm run pack:cli",
     "publish:server": "npm run build:server && npm run test:server && npm publish -w observability-server --access public",
     "publish:ui": "npm run build:ui && npm run test:ui && npm publish -w observability-ui --access public",
+    "publish:mcp": "npm run build:mcp && npm run test:mcp && npm publish -w observability-mcp --access public",
     "publish:cli": "npm run build:cli && npm run test:cli && npm publish -w observability-cli --access public",
     "publish:all": "npm run build && npm test && npm run publish:server && npm run publish:ui && npm run publish:cli"
   },
