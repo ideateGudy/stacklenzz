@@ -1,0 +1,62 @@
+{
+  "name": "@stacklenzz/mcp",
+  "version": "0.1.0",
+  "description": "Stacklenzz Model Context Protocol (MCP) server for AI coding assistants (Cursor, Windsurf, Claude, Gemini)",
+  "author": "Goodnews Azonubi <azonubigoodnews@gmail.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ideateGudy/stacklenzz.git",
+    "directory": "observability-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/ideateGudy/stacklenzz/issues"
+  },
+  "homepage": "https://github.com/ideateGudy/stacklenzz/tree/main/observability-mcp#readme",
+  "license": "Apache-2.0",
+  "keywords": [
+    "stacklenzz",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "cursor",
+    "observability",
+    "telemetry",
+    "monitoring",
+    "traces"
+  ],
+  "bin": {
+    "stacklenzz-mcp": "./bin/mcp.js"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "tsdown": "latest",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
